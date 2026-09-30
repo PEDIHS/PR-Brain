@@ -50,7 +50,7 @@
     {
       "op": "knowledge.update",
       "data": {
-        "node_id": "8cc03b97-2511-4d6b-a42c-5df13bd6ec39",
+        "node_id": "1f1adc3e-8abc-4a3c-89b3-690928dba1a0",
         "expected_version": 1,
         "title": "Marketplace Operating Model",
         "summary": "مدل عملیاتی Marketplace از Catalog و موجودی تا Checkout، escrow، fulfillment، رضایت مشتری و تسویه فروشنده.",
@@ -117,7 +117,7 @@
       "op": "relation.create",
       "data": {
         "source_node_id": "$seller_trust",
-        "target_node_id": "8cc03b97-2511-4d6b-a42c-5df13bd6ec39",
+        "target_node_id": "1f1adc3e-8abc-4a3c-89b3-690928dba1a0",
         "relation_type": "supports"
       }
     },
@@ -125,7 +125,7 @@
       "op": "relation.create",
       "data": {
         "source_node_id": "$escrow_returns",
-        "target_node_id": "8cc03b97-2511-4d6b-a42c-5df13bd6ec39",
+        "target_node_id": "1f1adc3e-8abc-4a3c-89b3-690928dba1a0",
         "relation_type": "implements"
       }
     }
