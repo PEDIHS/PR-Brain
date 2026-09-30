@@ -1545,3 +1545,94 @@ body{
   .agent-metric-grid strong{font-size:24px}
   .usage-bars{overflow-x:auto}.usage-day{min-width:42px}
 }
+
+
+/* GitHub GitOps update flow */
+.sync-button{
+  height:38px;border:1px solid #d8dbea;background:#fff;color:#65697b;border-radius:10px;
+  padding:0 11px;display:flex;align-items:center;gap:7px;font-size:10px;font-weight:700;
+  transition:all .16s ease
+}
+.sync-button:hover{border-color:#bcb7e9;background:#f8f7ff;color:#5148b4}
+.sync-button.has-updates{
+  border-color:#c9c3ef;background:linear-gradient(135deg,#f2efff,#fff);color:#5248bb;
+  box-shadow:0 6px 18px rgba(91,78,194,.08)
+}
+.sync-button em{
+  min-width:19px;height:19px;border-radius:999px;display:grid;place-items:center;
+  padding:0 5px;background:#6c5ce7;color:#fff;font-size:8px;font-style:normal
+}
+.github-sync-modal{
+  width:min(850px,calc(100vw - 32px));max-height:min(820px,calc(100vh - 42px));
+  display:flex;flex-direction:column;overflow:hidden;background:#f8f8fc;
+  border:1px solid #d9dbea;border-radius:18px;box-shadow:0 30px 90px rgba(24,20,58,.2)
+}
+.github-sync-head{
+  min-height:82px;padding:16px 18px;display:grid;grid-template-columns:44px 1fr auto;gap:11px;align-items:center;
+  background:linear-gradient(135deg,#fff 35%,#f0edff);border-bottom:1px solid #e5e5ef
+}
+.github-sync-icon{
+  width:44px;height:44px;border-radius:13px;display:grid;place-items:center;
+  color:#fff;background:linear-gradient(135deg,#6c5ce7,#4f46b9);
+  box-shadow:0 10px 26px rgba(93,79,201,.22)
+}
+.github-sync-head h3{font-size:15px;margin:3px 0 1px}
+.github-sync-head p{font-size:8px;color:#8d91a0;margin:0;direction:ltr;text-align:right}
+.sync-loading,.sync-error,.sync-clean{
+  min-height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:9px;padding:30px;text-align:center
+}
+.sync-loading{color:#8c90a0;font-size:10px}
+.sync-error strong{font-size:12px;color:#ab5149}.sync-error span{font-size:9px;color:#8c909e;max-width:540px;line-height:1.9}
+.sync-clean svg{color:#00a884}.sync-clean strong{font-size:13px;color:#4b5061}.sync-clean span{font-size:9px;color:#969aa8}
+.sync-summary-grid{
+  display:grid;grid-template-columns:.7fr .7fr 1.6fr;gap:9px;padding:12px 14px 5px
+}
+.sync-summary-grid article{
+  min-height:82px;padding:11px 12px;background:#fff;border:1px solid #e5e6ef;border-radius:11px;
+  display:flex;flex-direction:column;gap:3px
+}
+.sync-summary-grid span{font-size:7px;color:#9a9dab;text-transform:uppercase;letter-spacing:.06em}
+.sync-summary-grid strong{font-size:20px;color:#373a4b;margin-top:5px}
+.sync-summary-grid .sync-repo-name{font-size:10px;direction:ltr;text-align:right;overflow-wrap:anywhere}
+.sync-summary-grid small{font-size:7px;color:#a2a5b1;direction:ltr;text-align:right;overflow-wrap:anywhere}
+.sync-pending-list{
+  flex:1;overflow:auto;padding:9px 14px 14px;display:flex;flex-direction:column;gap:8px;
+  scrollbar-width:thin;scrollbar-color:#d6d6e4 transparent
+}
+.sync-change-card{
+  display:grid;grid-template-columns:38px 1fr;gap:10px;padding:12px;background:#fff;
+  border:1px solid #e3e4ee;border-radius:12px;transition:border-color .15s ease,transform .15s ease
+}
+.sync-change-card:hover{border-color:#ccc7ec;transform:translateY(-1px)}
+.sync-change-index{
+  width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+  background:#f0edff;color:#6357cd;font-size:8px;font-weight:800
+}
+.sync-change-main{min-width:0}
+.sync-change-title{display:flex;align-items:center;gap:8px}
+.sync-change-title strong{font-size:10px;color:#424657;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sync-change-title span{margin-inline-start:auto;white-space:nowrap;font-size:7px;background:#eef7f4;color:#187a63;border-radius:999px;padding:3px 7px}
+.sync-change-main>p{font-size:8px;color:#9699a7;line-height:1.7;margin:5px 0}
+.sync-change-meta{display:flex;flex-wrap:wrap;gap:9px;margin:5px 0 8px}
+.sync-change-meta span{display:flex;align-items:center;gap:4px;font-size:7px;color:#898d9d}
+.sync-op-pills{display:flex;gap:5px;flex-wrap:wrap}
+.sync-op-pills span{
+  font-size:7px;direction:ltr;background:#f3f3f8;color:#676b7c;border:1px solid #ebebf2;border-radius:6px;padding:3px 6px
+}
+.github-sync-footer{
+  min-height:74px;padding:11px 14px;border-top:1px solid #e3e4ed;background:#fff;
+  display:flex;align-items:center;gap:8px
+}
+.github-sync-footer>div{min-width:0;flex:1;display:flex;flex-direction:column;gap:2px}
+.github-sync-footer>div span{font-size:8px;font-weight:700;color:#5b5f70}
+.github-sync-footer>div small{font-size:7px;color:#989ba8}
+.sync-apply{min-width:145px}
+@media(max-width:760px){
+  .topbar-actions .sync-button span{display:none}
+  .github-sync-modal{width:calc(100vw - 18px);max-height:calc(100vh - 24px)}
+  .sync-summary-grid{grid-template-columns:1fr 1fr}.sync-summary-grid article:last-child{grid-column:1/-1}
+  .github-sync-footer{align-items:stretch;flex-wrap:wrap}
+  .github-sync-footer>div{flex-basis:100%}
+  .github-sync-footer button{flex:1}
+}
