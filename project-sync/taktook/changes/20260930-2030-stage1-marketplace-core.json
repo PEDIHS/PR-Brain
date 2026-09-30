@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "id": "20260930-stage1-marketplace-core",
+  "project": "taktook",
+  "title": "Stage 1 discovery — transactional marketplace core",
+  "agent": "ChatGPT Product Discovery",
+  "created_at": "2026-09-30T20:30:00+02:00",
+  "notes": "Capture confirmed product direction from founder discovery: nationwide new+used parts marketplace, verified sellers, platform checkout/escrow, live inventory, returns, proof-of-shipment, seller ranking, inventory/POS tooling and smart imports. Monetization remains an open decision.",
+  "operations": [
+    {
+      "op": "knowledge.update",
+      "data": {
+        "node_id": "1feb0dde-10e0-4e62-b399-dc6191e8b7e4",
+        "expected_version": 1,
+        "title": "Product Positioning",
+        "summary": "TAKTOOK is the nationwide transactional marketplace for new and used automotive parts — the 'Digikala of car parts', not just a search engine.",
+        "content": "TAKTOOK باید به‌عنوان مارکت‌پلیس سراسری قطعات خودرو شناخته شود؛ نه صرفاً موتور جستجو یا دایرکتوری فروشنده. پلتفرم خودش فعلاً موجودی یا کالای مستقیم ندارد و عرضه از فروشندگان تاییدشده شامل لوازم‌یدکی‌ها، استوک‌فروشی‌ها و واردکننده‌ها تامین می‌شود. کاربر باید قطعه را بر اساس برند خودرو، مدل، نوع قطعه، وضعیت نو/استوک، قیمت، شهر و فروشنده پیدا کند، بین چند فروشنده مقایسه کند و خرید را داخل TAKTOOK نهایی کند. نام و اعتبار فروشنده می‌تواند نمایش داده شود، اما مسیر اصلی ارزش و درآمد باید تراکنش داخل پلتفرم باشد. مزیت رقابتی موردنظر ترکیب Catalog تخصصی قطعات، موجودی واقعی، اصالت کالا، اعتبار فروشنده، خرید امن، امکان ارسال یا تحویل حضوری و تجربه یکپارچه کشف تا پرداخت است."
+      }
+    },
+    {
+      "op": "knowledge.update",
+      "data": {
+        "node_id": "05947333-0fea-45e9-8c2f-06f3ac729551",
+        "expected_version": 1,
+        "title": "Seller Inventory Network",
+        "summary": "شبکه موجودی لحظه‌ای فروشندگان تاییدشده با ابزار انبارداری، ثبت دستی و Import هوشمند.",
+        "content": "TAKTOOK باید موجودی فروشندگان قطعات نو و استوک را به‌صورت ساختاریافته و تا حد ممکن لحظه‌ای نگه دارد. فروشنده هنگام ثبت محصول ابتدا خودرو/برند/مدل و قطعه متناظر را از Catalog انتخاب می‌کند، سپس وضعیت کالا، توضیحات، قیمت، موجودی، شهر و شرایط فروش را ثبت می‌کند. اعلام موجودی غیرواقعی باید روی امتیاز و رتبه فروشنده اثر منفی داشته باشد و تکرار آن بتواند محدودیت یا تعلیق فروشگاه ایجاد کند. فروشنده باید یک پنل انبارداری کاربردی داشته باشد تا فروش‌های خارج از TAKTOOK را هم از موجودی کم کند و موجودی پلتفرم از واقعیت عقب نماند. برای فروشندگان بزرگ، ورود گروهی از Excel/فایل ساختاریافته و در صورت وجود سایت یا API، Import هوشمند و Sync باید پشتیبانی شود. Import نباید مستقیم Publish شود؛ رکوردهای پیشنهادی باید قابل بازبینی، اصلاح و سپس انتشار توسط فروشنده باشند."
+      }
+    },
+    {
+      "op": "knowledge.update",
+      "data": {
+        "node_id": "c72d8eae-33a0-4919-958f-f8b09c5c96b3",
+        "expected_version": 1,
+        "title": "Supply-Side Strategy",
+        "summary": "Onboard licensed automotive-parts businesses nationwide and make TAKTOOK useful as both a sales channel and inventory operating tool.",
+        "content": "عرضه TAKTOOK باید از کسب‌وکارهای واقعی حوزه قطعات خودرو تامین شود: لوازم‌یدکی‌ها، فروشگاه‌های قطعات استوک و دست‌دوم، واردکننده‌ها و سایر فروشندگان دارای مجوز مرتبط. هر کسی نباید بدون تایید بتواند فروشنده شود. onboarding شامل احراز هویت و اطلاعات کسب‌وکار مانند تلفن، کد ملی یا شناسه لازم، جواز کسب یا مجوز مرتبط، آدرس واقعی، تصویر فروشگاه و اطلاعات تسویه است. TAKTOOK علاوه بر کانال فروش باید برای فروشنده ابزار عملیاتی ایجاد کند؛ مدیریت موجودی، سفارش، قیمت، فروش حضوری/خارج از پلتفرم و Import گروهی. استراتژی عرضه از نظر محصول سراسری است، ولی برای راه‌اندازی می‌توان acquisition را در یک یا چند شهر پرتراکم شروع کرد بدون اینکه معماری یا تجربه کاربر منطقه‌ای طراحی شود."
+      }
+    },
+    {
+      "op": "knowledge.update",
+      "data": {
+        "node_id": "468906af-005a-4e26-9885-2f6caa6cd468",
+        "expected_version": 1,
+        "title": "Part Search & Compatibility",
+        "summary": "جستجو و انتخاب قطعه با مسیر Vehicle → Part و مقایسه فروشندگان بر اساس سازگاری، قیمت، فاصله و اعتبار.",
+        "content": "مسیر پایه کشف قطعه باید برای کاربر غیرمتخصص ساده باشد: انتخاب برند خودرو → مدل/نسخه خودرو → قطعه موردنظر → مشاهده Offerهای فروشندگان. نتیجه باید امکان مقایسه قیمت، وضعیت نو/استوک، فروشنده، شهر، امتیاز و روش دریافت را داشته باشد. کاربر می‌تواند ارسال به آدرس خودش یا در صورت امکان تحویل حضوری از فروشنده را انتخاب کند. Search پیشرفته در آینده می‌تواند نام قطعه، OEM/Part Number، VIN و تشخیص طبیعی عبارت‌های کاربر را هم پشتیبانی کند، اما هسته محصول نباید به متن آزاد وابسته باشد؛ Catalog استاندارد خودرو و قطعه باید مرجع ساختاری باشد. سازگاری قطعه باید قابل ردیابی و دارای منبع/سطح اطمینان باشد."
+      }
+    },
+    {
+      "op": "knowledge.update",
+      "data": {
+        "node_id": "8cc03b97-2511-4d6b-a42c-5df13bd6ec39",
+        "expected_version": 1,
+        "title": "Marketplace Operating Model",
+        "summary": "مدل عملیاتی Marketplace از Catalog و موجودی تا Checkout، escrow، fulfillment، رضایت مشتری و تسویه فروشنده.",
+        "content": "TAKTOOK یک Marketplace تراکنشی است. فروشنده Offer خود را روی یک قطعه Canonical ثبت می‌کند؛ کاربر Offer را انتخاب و Checkout را داخل TAKTOOK انجام می‌دهد. پول ابتدا نزد پلتفرم نگه داشته می‌شود و سفارش همراه با اطلاعات لازم برای fulfillment به فروشنده ارسال می‌شود. فروشنده باید کالا را در SLA مشخص آماده و ارسال کند و قبل از بسته‌بندی/ارسال، مدرک تصویری از کالا ثبت کند تا وضعیت و کالای ارسالی قابل اثبات باشد. کاربر بعد از دریافت امکان تایید رضایت یا ثبت مسئله/درخواست مرجوعی دارد. تسویه فروشنده بعد از عبور از وضعیت موردتوافق انجام می‌شود و سهم/کمیسیون TAKTOOK در همان جریان محاسبه می‌شود. فروشنده می‌تواند اطلاعات لازم برای ارسال مشتری را ببیند اما نباید معامله را خارج از پلتفرم منتقل کند. سیستم باید تحویل حضوری را هم به‌عنوان fulfillment method پشتیبانی کند، بدون حذف ثبت تراکنش از TAKTOOK."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "seller_trust",
+      "data": {
+        "workflow_id": "007a2ae7-f7ca-4423-a965-794b121055ab",
+        "node_type": "requirement",
+        "title": "Seller Verification & Trust Model",
+        "slug": "seller-verification-trust",
+        "summary": "احراز کسب‌وکار، رتبه‌بندی فروشنده، کنترل تقلب و قواعد تعلیق فروشگاه.",
+        "content": "فروشندگی در TAKTOOK باید gated باشد. حداقل ورودی پیشنهادی شامل اطلاعات هویتی، تلفن تاییدشده، مجوز یا جواز مرتبط با قطعات خودرو، آدرس واقعی کسب‌وکار، تصویر محل فعالیت و اطلاعات تسویه است. هر فروشگاه یک Trust Score قابل مشاهده دارد که از عواملی مانند موجودی واقعی، لغو ناشی از ناموجود بودن، سرعت آماده‌سازی، نرخ مرجوعی، شکایت اصالت، کیفیت بسته‌بندی، رضایت مشتری و سابقه سفارش تشکیل می‌شود. رتبه بالاتر باید روی visibility و ranking اثر مثبت داشته باشد. تخلف جدی یا تکرارشونده باید اخطار، محدودیت فروش، تعلیق یا بسته‌شدن فروشگاه ایجاد کند. قواعد امتیازدهی و آستانه‌های تعلیق هنوز نیازمند طراحی و آزمایش دقیق هستند."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "escrow_returns",
+      "data": {
+        "workflow_id": "ca36ff99-b24c-4ef9-a3bd-dc15614504b9",
+        "node_type": "requirement",
+        "title": "Checkout, Escrow & Returns",
+        "slug": "checkout-escrow-returns",
+        "summary": "پرداخت داخل TAKTOOK، نگهداری وجه تا رضایت/مهلت مشخص، مرجوعی و مدارک اختلاف.",
+        "content": "تمام خریدهای Marketplace باید داخل TAKTOOK ثبت و پرداخت شوند. وجه در مرحله خرید به پلتفرم می‌رسد و تا تحقق شرایط تسویه نزد پلتفرم نگه داشته می‌شود. فروشنده سفارش و اطلاعات لازم برای ارسال را دریافت می‌کند. برای کاهش اختلاف، فروشنده پیش از بسته‌بندی یا ارسال باید تصویر کالا و وضعیت آن را ثبت کند. کاربر بعد از دریافت باید امکان تایید، اعلام مشکل، مغایرت، عدم اصالت یا ناسازگاری و درخواست مرجوعی داشته باشد. در اختلافات، مدارک فروشنده، مشخصات Offer، تصاویر پیش از ارسال، وضعیت حمل و مستندات مشتری مبنای بررسی هستند. طول پنجره رضایت، شرایط دقیق آزادسازی وجه، هزینه مرجوعی و مسئولیت هر سناریو هنوز تصمیم‌گیری نشده‌اند و باید در Discovery بعدی نهایی شوند."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "seller_ops",
+      "data": {
+        "workflow_id": "ac5417c9-aba6-4653-9c7c-c0a5d6f47993",
+        "node_type": "architecture",
+        "title": "Seller Inventory & Import System",
+        "slug": "seller-inventory-import-system",
+        "summary": "پنل موجودی فروشنده با ثبت دستی، bulk import، اتصال منبع خارجی، review queue و sync.",
+        "content": "زیرسیستم Seller Inventory باید هم برای فروشنده کوچک و هم فروشنده دارای هزاران SKU کار کند. ورود دستی بر پایه Catalog خودرو و قطعه انجام می‌شود. Bulk Import باید فایل‌هایی مانند Excel/CSV را بپذیرد و ستون‌های فروشنده را به Vehicle, Part, Brand, Condition, Price, Stock و سایر فیلدهای Canonical نگاشت کند. برای فروشنده‌ای که سایت/API دارد، connector یا import pipeline می‌تواند محصولات را استخراج و به رکوردهای پیشنهادی تبدیل کند. رکوردهای import شده ابتدا وارد Review Queue می‌شوند و فروشنده باید mappingهای نامطمئن را تایید یا اصلاح کند و سپس Publish کند. پنل انبار باید stock adjustment دستی، فروش خارج از TAKTOOK، رزرو موجودی برای سفارش درحال پرداخت و جلوگیری از oversell را پوشش دهد."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "monetization_open",
+      "data": {
+        "workflow_id": "007a2ae7-f7ca-4423-a965-794b121055ab",
+        "node_type": "decision",
+        "title": "Monetization Model — Open Decision",
+        "slug": "monetization-model-open",
+        "summary": "مدل درآمدی هنوز قطعی نیست؛ کمیسیون تراکنش گزینه اولیه است و باید با Marketplaceهای مشابه و economics قطعات مقایسه شود.",
+        "content": "درآمد TAKTOOK هنوز نهایی نشده است. جهت اولیه، کمیسیون از تراکنش موفق است چون درآمد را با GMV و ارزش ایجادشده هم‌راستا می‌کند. گزینه‌های مکمل شامل اشتراک حرفه‌ای فروشنده، تبلیغات/جایگاه ویژه، ابزارهای انبارداری پیشرفته، هزینه خدمات fulfillment یا سایر سرویس‌های B2B هستند. قبل از تصمیم باید ساختار کمیسیون Marketplaceهای مشابه، حاشیه سود دسته‌های مختلف قطعات، هزینه پرداخت/مرجوعی/پشتیبانی و حساسیت فروشنده بررسی شود. تصمیم نهایی باید بعد از Discovery اقتصادی ثبت شود."
+      }
+    },
+    {
+      "op": "relation.create",
+      "data": {
+        "source_node_id": "$seller_ops",
+        "target_node_id": "05947333-0fea-45e9-8c2f-06f3ac729551",
+        "relation_type": "implements"
+      }
+    },
+    {
+      "op": "relation.create",
+      "data": {
+        "source_node_id": "$seller_trust",
+        "target_node_id": "8cc03b97-2511-4d6b-a42c-5df13bd6ec39",
+        "relation_type": "supports"
+      }
+    },
+    {
+      "op": "relation.create",
+      "data": {
+        "source_node_id": "$escrow_returns",
+        "target_node_id": "8cc03b97-2511-4d6b-a42c-5df13bd6ec39",
+        "relation_type": "implements"
+      }
+    }
+  ]
+}
