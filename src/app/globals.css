@@ -240,3 +240,50 @@ textarea{resize:vertical;line-height:1.8}
   .field-grid{grid-template-columns:1fr}
   .page-heading h2,.hero-row h2{font-size:22px}
 }
+
+
+/* Project operational profile / README */
+.operational-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;gap:8px;margin-bottom:16px}
+.op-item{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:11px 12px;min-width:0;display:flex;flex-direction:column;gap:5px}
+.op-item span{display:flex;align-items:center;gap:6px;font-size:9px;color:#8b929c;text-transform:uppercase;letter-spacing:.06em;direction:ltr;justify-content:flex-end}
+.op-item strong{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:ltr;text-align:right}
+.op-open{border:1px solid var(--line);background:#1f242c;color:#eef1f4;border-radius:10px;padding:0 13px;display:flex;align-items:center;gap:6px;font-size:10px;white-space:nowrap}
+.op-open:hover{background:#2a3039}
+.profile-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.profile-card{background:white;border:1px solid var(--line);border-radius:var(--radius);padding:14px;min-height:110px;display:flex;flex-direction:column;min-width:0}
+.profile-card>span{display:flex;align-items:center;gap:6px;color:#737a84;font-size:9px;text-transform:uppercase;letter-spacing:.05em;direction:ltr;justify-content:flex-end}
+.profile-card strong{font-size:11px;line-height:1.7;margin-top:13px;overflow-wrap:anywhere;direction:ltr;text-align:right}
+.profile-card small{font-size:8px;color:#9da2aa;margin-top:auto;padding-top:8px;direction:ltr;text-align:right}
+.readme-layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(320px,.65fr);gap:14px;align-items:start}
+.readme-panel,.rules-panel,.resources-panel{overflow:hidden}
+.readme-side{display:flex;flex-direction:column;gap:14px}
+.readme-updated{font-size:9px;color:#9ba1a9}
+.readme-document,.rules-document{white-space:pre-wrap;line-height:2;font-size:11px;color:#353b43;padding:22px;direction:rtl}
+.readme-document{min-height:420px}
+.rules-document{font-size:10px;min-height:180px}
+.resource-list{padding:7px}
+.resource-row{display:grid;grid-template-columns:65px 1fr auto;gap:9px;align-items:start;padding:10px;border-radius:8px}
+.resource-row:hover{background:#f7f8f9}
+.resource-kind{font-size:8px;text-transform:uppercase;letter-spacing:.05em;color:#6f7781;background:#eef0f2;border-radius:5px;padding:3px 5px;text-align:center;direction:ltr}
+.resource-row>div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.resource-row strong{font-size:9px}
+.resource-row code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:8px;color:#68707a;overflow-wrap:anywhere;direction:ltr;text-align:right;background:none}
+.resource-row small{font-size:8px;color:#9ba0a8}
+.profile-editor{padding:20px}
+.editor-section-title{margin-bottom:18px}
+.editor-section-title h3{font-size:16px;margin:5px 0 0}
+.profile-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12px}
+.profile-form-grid .wide{grid-column:1/-1}
+.profile-editor label{display:flex;flex-direction:column;gap:6px;font-size:10px;font-weight:700;color:#656c76;margin-bottom:12px}
+.profile-editor textarea{direction:ltr;text-align:left;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px}
+.profile-editor input{direction:ltr;text-align:left}
+@media(max-width:1100px){
+  .operational-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .op-open{min-height:42px;justify-content:center}
+  .profile-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .readme-layout{grid-template-columns:1fr}
+}
+@media(max-width:620px){
+  .operational-strip,.profile-grid,.profile-form-grid{grid-template-columns:1fr}
+  .profile-form-grid .wide{grid-column:auto}
+}
