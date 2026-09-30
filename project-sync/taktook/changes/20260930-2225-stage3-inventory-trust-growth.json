@@ -1,0 +1,183 @@
+{
+  "version": 1,
+  "id": "20260930-stage3-inventory-trust-growth",
+  "project": "taktook",
+  "title": "Stage 3 discovery — inventory freshness, trust, pricing and buyer experience",
+  "agent": "ChatGPT Product Discovery",
+  "created_at": "2026-09-30T22:25:00+03:30",
+  "notes": "Capture confirmed rules for stock freshness, availability confirmation, reservation priority, automated seller score, verified reviews, price intelligence, trust badges, location ranking, garage, B2B and anti-circumvention enforcement.",
+  "operations": [
+    {
+      "op": "knowledge.create",
+      "ref": "inventory_freshness",
+      "data": {
+        "workflow_id": "e16c3d95-9e05-487b-b472-dcaf621d0d13",
+        "node_type": "requirement",
+        "title": "Inventory Freshness & Reconfirmation",
+        "slug": "inventory-freshness-reconfirmation",
+        "summary": "فروشنده هر ۱۵ روز موجودی را تأیید می‌کند؛ کالای تاییدنشده پس از ۳۰ روز غیرفعال/ناموجود می‌شود ولی حذف نمی‌شود.",
+        "content": "TAKTOOK باید برای هر Offer زمان آخرین تایید موجودی را نگه دارد. هر حدود 15 روز به فروشنده داخل اپ/پنل Notification داده می‌شود تا موجودی را تایید یا اصلاح کند. این interval باید configurable باشد. اگر یک Offer تا 30 روز تایید/Sync نشد، سیستم آن را حذف نمی‌کند؛ وضعیت به inactive/out-of-stock تغییر می‌کند تا زمانی که فروشنده دوباره موجودی معتبر ثبت کند. هدف کاهش نمایش موجودی کاذب بدون از دست دادن Catalog و سابقه Offer است."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "availability_ping",
+      "data": {
+        "workflow_id": "ac5417c9-aba6-4653-9c7c-c0a5d6f47993",
+        "node_type": "requirement",
+        "title": "Pre-Purchase Availability Confirmation",
+        "slug": "pre-purchase-availability-confirmation",
+        "summary": "خریدار می‌تواند قبل از خرید اعلام موجودی بزند و Seller باید سریع پاسخ دهد؛ عدم پاسخ باعث پیشنهاد Seller جایگزین می‌شود.",
+        "content": "روی Offer باید امکان «اعلام موجودی / موجوده؟» وجود داشته باشد. درخواست به فروشنده Push/In-App Notification می‌شود و Seller می‌تواند موجود/ناموجود را تایید کند. در صورت تایید، کاربر Notification دریافت می‌کند و Offer برای خرید برجسته می‌شود. پاسخ باید SLA کوتاه داشته باشد. اگر فروشنده پاسخ ندهد، سیستم به‌جای نگه داشتن کاربر، Offerهای معتبر فروشندگان دیگر را پیشنهاد می‌کند. این رفتار باید در Seller responsiveness و Trust Score اثر داشته باشد."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "stock_model",
+      "data": {
+        "workflow_id": "ac5417c9-aba6-4653-9c7c-c0a5d6f47993",
+        "node_type": "architecture",
+        "title": "Stock Quantity & Availability Model",
+        "slug": "stock-quantity-availability-model",
+        "summary": "موجودی با quantity واقعی نگهداری می‌شود و UI بسته به مقدار می‌تواند ۱ عدد، ۲ عدد، موجود یا سفارشی نمایش دهد.",
+        "content": "مدل Stock باید quantity واقعی داشته باشد تا reservation، فروش حضوری و oversell به‌درستی کنترل شوند. UI لازم نیست همیشه عدد دقیق بالا را نمایش دهد؛ برای quantity کم می‌تواند «فقط 1 عدد» یا «2 عدد موجود» نشان دهد و برای موجودی زیاد «موجود» کافی است. Offer همچنین می‌تواند حالت‌هایی مانند in_stock، low_stock، out_of_stock، inactive و special_order داشته باشد. فروشنده باید بتواند فروش خارج از TAKTOOK را به‌عنوان stock adjustment ثبت کند. Pickup ثبت‌شده از طریق QR و خرید آنلاین باید موجودی را خودکار کم کند."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "reservation_priority",
+      "data": {
+        "workflow_id": "ac5417c9-aba6-4653-9c7c-c0a5d6f47993",
+        "node_type": "requirement",
+        "title": "Last-Unit Reservation Priority",
+        "slug": "last-unit-reservation-priority",
+        "summary": "برای آخرین موجودی، اولویت با کاربری است که زودتر وارد مرحله پرداخت معتبر شده و reservation فعال گرفته است.",
+        "content": "وقتی quantity به یک رسیده است، فقط یک Checkout می‌تواند reservation فعال بگیرد. اولویت با اولین کاربری است که وارد جریان پرداخت معتبر شده و reservation دریافت کرده است، نه صرفاً کسی که زودتر محصول را در Cart گذاشته است. سایر کاربران باید پیام عدم دسترسی موقت ببینند و Offer جایگزین یا امکان اعلام موجودی دریافت کنند. Reservation باید TTL داشته باشد و با timeout یا شکست پرداخت آزاد شود."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "seller_score",
+      "data": {
+        "workflow_id": "007a2ae7-f7ca-4423-a965-794b121055ab",
+        "node_type": "architecture",
+        "title": "Seller Trust Score 0–100",
+        "slug": "seller-trust-score-100",
+        "summary": "امتیاز فروشگاه ۰ تا ۱۰۰ به‌صورت خودکار از عملکرد واقعی محاسبه می‌شود و در Backend جزئیات کامل عوامل قابل مشاهده است.",
+        "content": "Seller Score امتیاز دستی نیست و باید از 0 تا 100 به‌صورت خودکار محاسبه شود. عوامل شامل رضایت مشتری، ارسال موفق، سرعت ارسال، اصالت، تطابق کالا، پاسخگویی، لغو ناشی از ناموجودی، اختلافات، مرجوعی، تلاش برای دورزدن پلتفرم و سایر KPIهای عملکردی هستند. کاربر می‌تواند امتیاز کلی فروشگاه را ببیند؛ تیم TAKTOOK در Admin باید breakdown دقیق، history تغییر امتیاز و دلایل افزایش/کاهش را ببیند. رسیدن امتیاز منفی/ریسک به آستانه‌های مشخص می‌تواند warning، کاهش visibility، محدودیت یا تعلیق ایجاد کند."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "verified_reviews",
+      "data": {
+        "workflow_id": "ca36ff99-b24c-4ef9-a3bd-dc15614504b9",
+        "node_type": "requirement",
+        "title": "Verified Purchase Reviews & Product Rating",
+        "slug": "verified-purchase-reviews-product-rating",
+        "summary": "امتیاز ۱ تا ۵ و Review فقط برای خرید واقعی فعال است؛ کاربران قبل از خرید فقط سؤال ثبت می‌کنند.",
+        "content": "Product Rating از 1 تا 5 و Review/Comment فقط برای سفارش واقعی و تحویل‌گرفته‌شده فعال است. میانگین امتیازهای Verified Purchase روی محصول نمایش داده می‌شود. کاربران بدون خرید حق ثبت Review ندارند، اما می‌توانند در بخش Questions درباره قطعه سؤال بپرسند و پاسخ‌ها به‌صورت جدا از Review نگهداری شوند. Review باید به Seller/Offer/Canonical Product و Order قابل انتساب باشد تا تحلیل کیفیت دقیق باشد."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "pricing_intelligence",
+      "data": {
+        "workflow_id": "f6180383-08d1-49c3-8bf9-13efe7f1924f",
+        "node_type": "architecture",
+        "title": "Pricing Intelligence & Anomaly Detection",
+        "slug": "pricing-intelligence-anomaly-detection",
+        "summary": "سیستم محدوده قیمت بازار هر قطعه را یاد می‌گیرد و قیمت‌های غیرعادی را هشدار/بررسی می‌کند.",
+        "content": "TAKTOOK باید Price Intelligence داشته باشد که از Offerهای معتبر، تاریخچه فروش، برند، condition، اصالت و ویژگی‌های قطعه محدوده قیمت معقول استخراج کند. Seller نباید بتواند قیمت پرت و بی‌معنا ثبت کند. قیمت خیلی پایین یا خیلی بالا باید anomaly flag بگیرد؛ بسته به confidence می‌توان warning به فروشنده داد، انتشار را برای review نگه داشت یا Offer را با برچسب بررسی‌شده نمایش داد. هدف جلوگیری از قیمت‌گذاری اشتباه و کلاهبرداری است، نه اجبار همه فروشندگان به قیمت یکسان."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "trust_badges",
+      "data": {
+        "workflow_id": "007a2ae7-f7ca-4423-a965-794b121055ab",
+        "node_type": "requirement",
+        "title": "Performance-Based Seller Badges",
+        "slug": "performance-based-seller-badges",
+        "summary": "Badgeهایی مثل فروشنده تاییدشده، اصالت بالا و فروشنده برتر فقط بر اساس عملکرد داده می‌شوند.",
+        "content": "Badgeهای اعتماد باید earned باشند نه خریدنی. نمونه‌ها: فروشنده تاییدشده، اصالت بالا، پاسخگویی سریع، ارسال قابل اعتماد و فروشنده برتر. Eligibility از Seller Score، مدارک، نرخ اصالت/اختلاف، fulfillment و سابقه واقعی می‌آید. Seller Subscription یا تبلیغات آینده نباید بتواند Badge اعتماد را خریداری کند یا فروشنده کم‌اعتماد را در Ranking بالاتر از حد امن ببرد."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "location_context",
+      "data": {
+        "workflow_id": "ac5417c9-aba6-4653-9c7c-c0a5d6f47993",
+        "node_type": "requirement",
+        "title": "Buyer Location & Proximity Context",
+        "slug": "buyer-location-proximity-context",
+        "summary": "برای خرید، آدرس کامل لازم است؛ قبل از آن کاربر می‌تواند شهر را فیلتر کند و نزدیکی Seller در Ranking لحاظ می‌شود.",
+        "content": "برای Checkout، کاربر باید آدرس معتبر شامل شهر، نشانی و کدپستی ثبت کند و کانال‌های تماس مانند شماره تلفن/ایمیل در سطح موردنیاز تایید شوند. قبل از ثبت آدرس، کاربر می‌تواند شهر مدنظر را در Filter انتخاب کند؛ در غیر این صورت Distance می‌تواند وزن خنثی یا تقریبی داشته باشد. بعد از وجود آدرس/شهر معتبر، proximity فروشنده به کاربر یکی از سیگنال‌های Ranking است و می‌تواند Seller نزدیک‌تر را در شرایط اعتماد/قیمت مشابه بالاتر بیاورد."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "product_offer_ui",
+      "data": {
+        "workflow_id": "6a0b01f6-51fd-4d5e-9363-d4d2e584e7dc",
+        "node_type": "requirement",
+        "title": "Canonical Product Page with Rich Seller Offers",
+        "slug": "canonical-product-page-rich-seller-offers",
+        "summary": "صفحه شبیه دیجی‌کالا با Product اصلی و لیست Seller Offerها، اما هر Offer می‌تواند عکس، ویدیو، عنوان و جزئیات خودش را داشته باشد.",
+        "content": "صفحه محصول باید یک Canonical Product اصلی داشته باشد و Seller Offerهای همان کالا را در بخش «فروشندگان دیگر این کالا» یا ساختار مشابه نمایش دهد. هر Offer فقط یک ردیف ساده قیمت نیست؛ Seller می‌تواند تصاویر واقعی، ویدیو، عنوان/توضیح Offer، condition، برند، قیمت، موجودی، شهر و fulfillment خودش را داشته باشد. UI باید تفاوت بین مشخصات Canonical و محتوای Seller Offer را واضح نگه دارد."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "my_garage",
+      "data": {
+        "workflow_id": "ca36ff99-b24c-4ef9-a3bd-dc15614504b9",
+        "node_type": "requirement",
+        "title": "My Garage Vehicle Profiles",
+        "slug": "my-garage-vehicle-profiles",
+        "summary": "کاربر چند خودرو با مشخصات کامل ذخیره می‌کند و Search/Compatibility با خودروی فعال شخصی‌سازی می‌شود.",
+        "content": "My Garage باید اجازه ثبت چند خودرو با جزئیات کامل Catalog مثل برند، مدل، تیپ، سال، موتور و گیربکس را بدهد. کاربر یک خودروی فعال انتخاب می‌کند و Search و فیلترها به‌طور پیش‌فرض بر اساس همان خودرو narrow می‌شوند؛ مثلاً جستجوی «برف‌پاک‌کن» به برف‌پاک‌کن سازگار با خودروی فعال تبدیل می‌شود. کاربر می‌تواند سریع بین خودروها جابه‌جا شود یا بدون Garage به‌صورت عمومی جستجو کند. Garage ابزار convenience است، نه الزام استفاده از سایت."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "b2b_accounts",
+      "data": {
+        "workflow_id": "007a2ae7-f7ca-4423-a965-794b121055ab",
+        "node_type": "research",
+        "title": "Professional Buyer / B2B Direction",
+        "slug": "professional-buyer-b2b-direction",
+        "summary": "مکانیک‌ها، تعمیرگاه‌ها و خریداران حرفه‌ای در آینده تجربه B2B با سفارش عمده، قیمت همکاری و فاکتور رسمی می‌گیرند.",
+        "content": "TAKTOOK باید مسیر آینده برای Professional Buyer داشته باشد: مکانیک، تعمیرگاه، نمایشگاه یا خریدار پرتعداد. قابلیت‌های مدنظر شامل سفارش پرتعداد، خرید تکراری، قیمت همکاری در صورت ارائه Seller، فاکتور رسمی، لیست قطعات و ابزارهای سریع سفارش است. جزئیات مدل حساب B2B، احراز کسب‌وکار، credit/settlement و تخفیف عمده هنوز نیازمند Discovery است."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "circumvention_enforcement",
+      "data": {
+        "workflow_id": "e16c3d95-9e05-487b-b472-dcaf621d0d13",
+        "node_type": "requirement",
+        "title": "Off-Platform Transaction Enforcement",
+        "slug": "off-platform-transaction-enforcement",
+        "summary": "تلاش برای انتقال معامله خارج TAKTOOK تخلف جدی قراردادی است و امتیاز منفی سنگین و escalation دارد.",
+        "content": "اگر Seller یا Buyer تلاش کند خرید را خارج TAKTOOK منتقل کند، علاوه بر فیلتر پیام باید enforcement وجود داشته باشد. تخلف باید Event قابل audit باشد، warning واضح بدهد و امتیاز منفی سنگین به Seller Risk/Trust اضافه کند. طبق قرارداد فروشنده، تکرار تخلف می‌تواند visibility را کاهش دهد، چت را محدود کند، فروشگاه را موقتاً تعلیق کند و در سطوح شدید به بررسی برای قطع همکاری برسد. آستانه‌های دقیق escalation هنوز باید تعریف شوند."
+      }
+    },
+    {
+      "op": "relation.create",
+      "data": {
+        "source_node_id": "$inventory_freshness",
+        "target_node_id": "05947333-0fea-45e9-8c2f-06f3ac729551",
+        "relation_type": "supports"
+      }
+    },
+    {
+      "op": "relation.create",
+      "data": {
+        "source_node_id": "$my_garage",
+        "target_node_id": "468906af-005a-4e26-9885-2f6caa6cd468",
+        "relation_type": "supports"
+      }
+    }
+  ]
+}
