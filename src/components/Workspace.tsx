@@ -10,6 +10,8 @@ import {
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Tree, type NodeRendererProps } from "react-arborist";
 import { motion, AnimatePresence } from "motion/react";
+import { Group, Panel, Separator } from "react-resizable-panels";
+import KnowledgeGraph, { type GraphRelation } from "./KnowledgeGraph";
 
 type Project = {
   id:string; name:string; slug:string; description:string; status:string; accent:string;
@@ -44,9 +46,13 @@ type Bootstrap = {
   projects:Project[]; project:Project|null; workflows:WorkflowRow[]; nodes:NodeRow[];
   roadmap:RoadmapRow[]; activity:ActivityRow[];
   metrics?:{knowledge:number;workflows:number;open_roadmap:number;versions:number;changes_7d:number};
-  profile?:ProjectProfile|null; resources?:ProjectResource[];
+  profile?:ProjectProfile|null; resources?:ProjectResource[]; relations?:GraphRelation[];
 };
-type Detail = { node:NodeRow; versions:Array<{id:number;version:number;change_note:string;actor:string;created_at:string}>; relations:unknown[] };
+type Detail = {
+  node:NodeRow;
+  versions:Array<{id:number;version:number;change_note:string;actor:string;created_at:string}>;
+  relations:Array<GraphRelation & {source_title?:string;target_title?:string}>;
+};
 
 const sections = [
   {id:"overview",label:"نمای کلی",icon:LayoutDashboard},
@@ -191,6 +197,7 @@ export default function Workspace() {
   const [loading,setLoading] = useState(true);
   const [section,setSection] = useState<typeof sections[number]["id"]>("overview");
   const [selectedWorkflowId,setSelectedWorkflowId] = useState<string>("");
+  const [knowledgeMode,setKnowledgeMode] = useState<"tree"|"graph">("tree");
   const [projectId,setProjectId] = useState<string>("");
   const [detail,setDetail] = useState<Detail|null>(null);
   const [detailLoading,setDetailLoading] = useState(false);
@@ -584,18 +591,24 @@ export default function Workspace() {
           </div>}
 
           {section==="knowledge" && <motion.div
-            className="page knowledge-page"
+            className="page knowledge-page knowledge-studio-page"
             initial={{opacity:0,y:8}}
             animate={{opacity:1,y:0}}
             transition={{duration:.24,ease:"easeOut"}}
           >
             <div className="page-heading knowledge-heading">
               <div>
-                <span className="eyebrow">KNOWLEDGE EXPLORER</span>
-                <h2>درخت دانش پروژه</h2>
-                <p>ساختار واقعی پوشه‌ها و اسناد؛ قابل انتخاب، باز/بسته‌شدن و Drag & Drop با ثبت نسخه.</p>
+                <span className="eyebrow">KNOWLEDGE STUDIO</span>
+                <h2>درخت، سند و Context در یک Workspace</h2>
+                <p>ساختار را در Tree مدیریت کن، محتوا را همان‌جا بخوان و Version/Relationها را بدون ترک صفحه ببین.</p>
               </div>
-              <button className="primary-button" onClick={()=>setCreateKind("knowledge")}><Plus size={15}/> ثبت دانش</button>
+              <div className="knowledge-heading-actions">
+                <div className="view-switcher">
+                  <button className={knowledgeMode==="tree"?"active":""} onClick={()=>setKnowledgeMode("tree")}><FolderTree size={14}/> Tree</button>
+                  <button className={knowledgeMode==="graph"?"active":""} onClick={()=>setKnowledgeMode("graph")}><GitBranch size={14}/> Graph</button>
+                </div>
+                <button className="primary-button" onClick={()=>setCreateKind("knowledge")}><Plus size={15}/> ثبت دانش</button>
+              </div>
             </div>
 
             <div className="workflow-tabs" role="tablist" aria-label="Workflow selector">
@@ -610,7 +623,7 @@ export default function Workspace() {
                   style={{"--wf":p.color,"--wf-soft":p.soft} as React.CSSProperties}
                   whileHover={{y:-2}}
                   whileTap={{scale:.97}}
-                  onClick={()=>setSelectedWorkflowId(w.id)}
+                  onClick={()=>{setSelectedWorkflowId(w.id);setDetail(null);setEditing(false)}}
                 >
                   <span className="workflow-tab-icon"><Workflow size={15}/></span>
                   <span><strong>{w.name}</strong><small>{count} node</small></span>
@@ -620,8 +633,8 @@ export default function Workspace() {
 
             <AnimatePresence mode="wait">
               <motion.section
-                key={selectedWorkflowId}
-                className="knowledge-explorer panel"
+                key={selectedWorkflowId+"-"+knowledgeMode}
+                className="knowledge-explorer knowledge-studio panel"
                 initial={{opacity:0,scale:.995}}
                 animate={{opacity:1,scale:1}}
                 exit={{opacity:0,scale:.995}}
@@ -644,16 +657,124 @@ export default function Workspace() {
                     <span><b>{selectedWorkflowNodes.filter(n=>n.node_type==="architecture").length}</b> architecture</span>
                   </div>
                 </div>
-                <div className="tree-toolbar">
-                  <span><CircleDot size={12}/> برای بازکردن روی Node کلیک کن؛ برای تغییر شاخه Drag کن.</span>
-                  {saving && <span className="tree-saving"><Loader2 size={12} className="spin"/> در حال ذخیره ساختار…</span>}
-                </div>
-                <KnowledgeTree
-                  nodes={selectedWorkflowNodes}
-                  selection={detail?.node.id}
-                  onOpen={openNode}
-                  onMove={moveKnowledge}
-                />
+
+                {knowledgeMode==="graph" ? <div className="graph-studio">
+                  <div className="tree-toolbar">
+                    <span><GitBranch size={12}/> Hierarchy و Relationهای ثبت‌شده در Brain</span>
+                    <span>{(data.relations||[]).filter(r=>selectedWorkflowNodes.some(n=>n.id===r.source_node_id||n.id===r.target_node_id)).length} relation</span>
+                  </div>
+                  <KnowledgeGraph
+                    nodes={selectedWorkflowNodes}
+                    relations={data.relations||[]}
+                    selectedId={detail?.node.id}
+                    onOpen={(node)=>openNode(node as NodeRow)}
+                  />
+                </div> : <div className="studio-panels">
+                  <Group orientation="horizontal" className="knowledge-panel-group">
+                    <Panel id="tree-panel" defaultSize="30%" minSize="22%" maxSize="44%">
+                      <section className="studio-pane tree-pane">
+                        <div className="studio-pane-head">
+                          <div><span className="eyebrow">EXPLORER</span><strong>ساختار {selectedWorkflow?.name}</strong></div>
+                          <span>{selectedWorkflowNodes.length}</span>
+                        </div>
+                        <div className="tree-toolbar">
+                          <span><CircleDot size={12}/> Drag & Drop برای جابه‌جایی شاخه</span>
+                          {saving && <span className="tree-saving"><Loader2 size={12} className="spin"/> ذخیره…</span>}
+                        </div>
+                        <KnowledgeTree
+                          nodes={selectedWorkflowNodes}
+                          selection={detail?.node.id}
+                          onOpen={openNode}
+                          onMove={moveKnowledge}
+                        />
+                      </section>
+                    </Panel>
+
+                    <Separator className="studio-separator"><span/></Separator>
+
+                    <Panel id="document-panel" defaultSize="45%" minSize="31%">
+                      <section className="studio-pane document-pane">
+                        {detailLoading ? <div className="studio-empty"><Loader2 className="spin"/><strong>در حال بازکردن سند…</strong></div>
+                        : detail ? <>
+                          <div className="studio-document-head">
+                            <div className={"studio-document-icon type-"+detail.node.node_type}><TypeIcon type={detail.node.node_type} size={18}/></div>
+                            <div>
+                              <span className="eyebrow">{typeLabels[detail.node.node_type]||detail.node.node_type}</span>
+                              <h3>{detail.node.title}</h3>
+                              <p>{detail.node.summary||"بدون خلاصه"}</p>
+                            </div>
+                            <div className="studio-document-actions">
+                              <span>v{detail.node.current_version}</span>
+                              <button className="secondary-button" onClick={()=>setEditing(!editing)}>{editing?"بستن ویرایش":"ویرایش"}</button>
+                            </div>
+                          </div>
+
+                          {!editing ? <div className="studio-document-body">
+                            <div className="document-content studio-document-content">{detail.node.content||"هنوز محتوایی ثبت نشده."}</div>
+                          </div> : <form className="studio-edit-form edit-form" onSubmit={saveNode}>
+                            <label>عنوان<input name="title" defaultValue={detail.node.title}/></label>
+                            <label>خلاصه<textarea name="summary" rows={3} defaultValue={detail.node.summary}/></label>
+                            <label>محتوا<textarea name="content" rows={15} defaultValue={detail.node.content}/></label>
+                            <div className="field-grid">
+                              <label>وضعیت<select name="status" defaultValue={detail.node.status}><option value="active">active</option><option value="draft">draft</option><option value="archived">archived</option></select></label>
+                              <label>یادداشت تغییر<input name="changeNote" placeholder="چه چیزی و چرا تغییر کرد؟"/></label>
+                            </div>
+                            <div className="form-actions"><button type="button" className="secondary-button" onClick={()=>setEditing(false)}>لغو</button><button className="primary-button" disabled={saving}>{saving?"ذخیره…":"ثبت نسخه جدید"}</button></div>
+                          </form>}
+                        </> : <div className="studio-empty document-empty">
+                          <div className="empty-orb"><FileText size={24}/></div>
+                          <strong>یک Node را از درخت انتخاب کن</strong>
+                          <span>محتوا و جزئیات آن بدون بازشدن Drawer در همین پنل نمایش داده می‌شود.</span>
+                        </div>}
+                      </section>
+                    </Panel>
+
+                    <Separator className="studio-separator"><span/></Separator>
+
+                    <Panel id="context-panel" defaultSize="25%" minSize="18%" maxSize="36%" collapsible collapsedSize="0%">
+                      <aside className="studio-pane context-pane">
+                        <div className="studio-pane-head">
+                          <div><span className="eyebrow">CONTEXT</span><strong>نسخه‌ها و ارتباطات</strong></div>
+                          {detail && <span>{detail.relations.length}</span>}
+                        </div>
+                        {detail ? <div className="context-scroll">
+                          <section className="context-section">
+                            <div className="context-title"><History size={14}/><strong>Version history</strong><span>{detail.versions.length}</span></div>
+                            <div className="context-timeline">
+                              {detail.versions.slice(0,12).map((v,i)=><div className="context-version" key={v.id}>
+                                <i className={i===0?"latest":""}/>
+                                <div><strong>v{v.version} · {v.change_note||"Update"}</strong><small>{v.actor} · {fmtDate(v.created_at)}</small></div>
+                              </div>)}
+                            </div>
+                          </section>
+                          <section className="context-section">
+                            <div className="context-title"><GitBranch size={14}/><strong>Relations</strong><span>{detail.relations.length}</span></div>
+                            <div className="relation-list">
+                              {detail.relations.map(r=>{
+                                const outgoing=r.source_node_id===detail.node.id;
+                                return <div className="relation-card" key={r.id}>
+                                  <span className="relation-direction">{outgoing?"→":"←"}</span>
+                                  <div><strong>{r.relation_type}</strong><small>{outgoing?r.target_title:r.source_title}</small></div>
+                                </div>
+                              })}
+                              {!detail.relations.length && <div className="context-empty">هنوز Relation مستقیمی ثبت نشده.</div>}
+                            </div>
+                          </section>
+                          <section className="context-section context-meta">
+                            <div className="context-title"><CircleDot size={14}/><strong>Metadata</strong></div>
+                            <dl>
+                              <div><dt>Status</dt><dd>{detail.node.status}</dd></div>
+                              <div><dt>Type</dt><dd>{typeLabels[detail.node.node_type]||detail.node.node_type}</dd></div>
+                              <div><dt>Updated</dt><dd>{fmtDate(detail.node.updated_at)}</dd></div>
+                            </dl>
+                          </section>
+                        </div> : <div className="studio-empty context-empty-state">
+                          <GitBranch size={22}/><strong>Context آماده نمایش است</strong><span>با انتخاب Node، تاریخچه و Relationها اینجا می‌آیند.</span>
+                        </div>}
+                      </aside>
+                    </Panel>
+                  </Group>
+                </div>}
               </motion.section>
             </AnimatePresence>
           </motion.div>}
@@ -692,7 +813,7 @@ export default function Workspace() {
         </div>
       </section>
 
-      {(detailLoading||detail) && <aside className="detail-panel">
+      {section!=="knowledge" && (detailLoading||detail) && <aside className="detail-panel">
         {detailLoading ? <div className="detail-loading"><Loader2 className="spin"/>در حال خواندن نسخه‌ها…</div> : detail && <>
           <div className="detail-head"><div><span className={"tree-type type-"+detail.node.node_type}><TypeIcon type={detail.node.node_type}/></span><span>{typeLabels[detail.node.node_type]||detail.node.node_type}</span></div><button className="icon-button" onClick={()=>setDetail(null)}><X size={18}/></button></div>
           {!editing ? <div className="detail-body">
@@ -720,7 +841,7 @@ export default function Workspace() {
           <div className="search-box"><Search size={18}/><input autoFocus value={queryText} onChange={e=>setQueryText(e.target.value)} placeholder="عنوان، تصمیم، معماری، تغییر یا متن را جستجو کن…"/><kbd>ESC</kbd></div>
           <div className="search-results">
             {queryText.length<2 && <div className="search-hint"><Sparkles size={18}/><div><strong>جستجوی سراسری پروژه</strong><p>در عنوان، خلاصه و محتوای تمام Nodeهای پروژه جستجو می‌شود.</p></div></div>}
-            {searchResults.map(r=><button key={r.id} onClick={()=>{setSearchOpen(false);setSection("knowledge");openNode(r)}}>
+            {searchResults.map(r=><button key={r.id} onClick={()=>{setSearchOpen(false);if(r.workflow_id)setSelectedWorkflowId(r.workflow_id);setSection("knowledge");openNode(r)}}>
               <span className={"tree-type type-"+r.node_type}><TypeIcon type={r.node_type}/></span><div><strong>{r.title}</strong><p>{r.summary}</p></div><span>v{r.current_version}</span>
             </button>)}
             {queryText.length>=2&&!searchResults.length&&<div className="empty-search">نتیجه‌ای پیدا نشد.</div>}
