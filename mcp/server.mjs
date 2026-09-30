@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import pg from "pg";
 import { createMcpHandler, McpServer } from "@modelcontextprotocol/server";
-import { localhostHostValidation, localhostOriginValidation, toNodeHandler } from "@modelcontextprotocol/node";
+import { toNodeHandler } from "@modelcontextprotocol/node";
 import * as z from "zod/v4";
 
 const { Pool } = pg;
@@ -488,6 +488,16 @@ const handler = createMcpHandler(() => {
         summary: z.string().max(6000).optional(),
         content: z.string().max(200000).optional(),
         status: z.string().trim().max(80).optional(),
+        node_type: z.enum([
+          "folder",
+          "document",
+          "decision",
+          "architecture",
+          "requirement",
+          "research",
+          "runbook",
+          "log",
+        ]).optional(),
         metadata: z.record(z.string(), z.unknown()).optional(),
         change_note: z.string().trim().min(1).max(4000),
       }),
@@ -506,11 +516,12 @@ const handler = createMcpHandler(() => {
           summary: input.summary ?? c.summary,
           content: input.content ?? c.content,
           status: input.status ?? c.status,
+          node_type: input.node_type ?? c.node_type,
           metadata: input.metadata ?? c.metadata,
         };
         const updated = await client.query(
           `UPDATE knowledge_nodes
-           SET title=$2,summary=$3,content=$4,status=$5,metadata=$6,current_version=$7,updated_at=now()
+           SET title=$2,summary=$3,content=$4,status=$5,node_type=$6,metadata=$7,current_version=$8,updated_at=now()
            WHERE id=$1
            RETURNING *`,
           [
@@ -519,6 +530,7 @@ const handler = createMcpHandler(() => {
             values.summary,
             values.content,
             values.status,
+            values.node_type,
             values.metadata,
             version,
           ],
@@ -542,6 +554,222 @@ const handler = createMcpHandler(() => {
       });
       if (!node) return result({ error: "Knowledge node not found" });
       return result({ node });
+    },
+  );
+
+  server.registerTool(
+    "update_workflow",
+    {
+      description:
+        "Rename, describe or reorder a project workflow/category. Use this to maintain the top-level project taxonomy.",
+      inputSchema: z.object({
+        workflow_id: z.string().uuid(),
+        name: z.string().trim().min(1).max(180).optional(),
+        description: z.string().max(4000).optional(),
+        position: z.number().int().min(0).max(100000).optional(),
+      }),
+    },
+    async (input) => {
+      const workflow = await tx(async (client) => {
+        const current = await client.query(
+          "SELECT * FROM workflows WHERE id=$1 FOR UPDATE",
+          [input.workflow_id],
+        );
+        if (!current.rows[0]) return null;
+        const w = current.rows[0];
+        const updated = await client.query(
+          `UPDATE workflows
+           SET name=$2,description=$3,position=$4
+           WHERE id=$1
+           RETURNING *`,
+          [
+            input.workflow_id,
+            input.name ?? w.name,
+            input.description ?? w.description,
+            input.position ?? w.position,
+          ],
+        );
+        const next = updated.rows[0];
+        await appendActivity(client, {
+          projectId: next.project_id,
+          entityType: "workflow",
+          entityId: next.id,
+          action: "updated",
+          title: `Workflow updated: ${next.name}`,
+          details: { previous_name: w.name, position: next.position },
+        });
+        await client.query("UPDATE projects SET updated_at=now() WHERE id=$1", [next.project_id]);
+        return next;
+      });
+      if (!workflow) return result({ error: "Workflow not found" });
+      return result({ workflow });
+    },
+  );
+
+  server.registerTool(
+    "move_knowledge",
+    {
+      description:
+        "Move/re-parent a knowledge node to another branch or workflow and optionally reorder it. Prevents cross-project moves and tree cycles. Every structural move creates a version snapshot and audit event.",
+      inputSchema: z.object({
+        node_id: z.string().uuid(),
+        parent_id: z.string().uuid().nullable().optional(),
+        workflow_id: z.string().uuid().nullable().optional(),
+        position: z.number().int().min(0).max(100000).optional(),
+        change_note: z.string().trim().min(1).max(4000).default("Knowledge tree reorganized"),
+      }),
+    },
+    async (input) => {
+      const moved = await tx(async (client) => {
+        const current = await client.query(
+          "SELECT * FROM knowledge_nodes WHERE id=$1 FOR UPDATE",
+          [input.node_id],
+        );
+        if (!current.rows[0]) return { error: "Knowledge node not found" };
+        const n = current.rows[0];
+
+        const nextParent = input.parent_id === undefined ? n.parent_id : input.parent_id;
+        const nextWorkflow = input.workflow_id === undefined ? n.workflow_id : input.workflow_id;
+        const nextPosition = input.position === undefined ? n.position : input.position;
+
+        if (nextParent === input.node_id) return { error: "A node cannot be its own parent" };
+
+        if (nextParent) {
+          const parent = await client.query(
+            "SELECT id,project_id FROM knowledge_nodes WHERE id=$1",
+            [nextParent],
+          );
+          if (!parent.rows[0]) return { error: "Target parent not found" };
+          if (parent.rows[0].project_id !== n.project_id) {
+            return { error: "Cross-project moves are not allowed" };
+          }
+          const descendant = await client.query(
+            `WITH RECURSIVE descendants AS (
+               SELECT id FROM knowledge_nodes WHERE parent_id=$1
+               UNION ALL
+               SELECT child.id
+               FROM knowledge_nodes child
+               JOIN descendants d ON child.parent_id=d.id
+             )
+             SELECT 1 FROM descendants WHERE id=$2 LIMIT 1`,
+            [input.node_id, nextParent],
+          );
+          if (descendant.rows[0]) {
+            return { error: "Move rejected because it would create a tree cycle" };
+          }
+        }
+
+        if (nextWorkflow) {
+          const workflow = await client.query(
+            "SELECT id,project_id FROM workflows WHERE id=$1",
+            [nextWorkflow],
+          );
+          if (!workflow.rows[0]) return { error: "Target workflow not found" };
+          if (workflow.rows[0].project_id !== n.project_id) {
+            return { error: "Target workflow belongs to another project" };
+          }
+        }
+
+        const version = n.current_version + 1;
+        const updated = await client.query(
+          `UPDATE knowledge_nodes
+           SET parent_id=$2,workflow_id=$3,position=$4,current_version=$5,updated_at=now()
+           WHERE id=$1
+           RETURNING *`,
+          [input.node_id, nextParent || null, nextWorkflow || null, nextPosition, version],
+        );
+        const next = updated.rows[0];
+
+        await client.query(
+          `INSERT INTO knowledge_versions(node_id,version,title,summary,content,metadata,change_note,actor)
+           VALUES($1,$2,$3,$4,$5,$6,$7,'mcp')`,
+          [
+            next.id,
+            version,
+            next.title,
+            next.summary,
+            next.content,
+            {
+              ...next.metadata,
+              structure: {
+                workflow_id: next.workflow_id,
+                parent_id: next.parent_id,
+                position: next.position,
+              },
+            },
+            input.change_note,
+          ],
+        );
+
+        await appendActivity(client, {
+          projectId: next.project_id,
+          entityType: "knowledge",
+          entityId: next.id,
+          action: "moved",
+          title: `Moved: ${next.title}`,
+          details: {
+            version,
+            from_parent_id: n.parent_id,
+            to_parent_id: next.parent_id,
+            from_workflow_id: n.workflow_id,
+            to_workflow_id: next.workflow_id,
+            position: next.position,
+            change_note: input.change_note,
+          },
+        });
+        await client.query("UPDATE projects SET updated_at=now() WHERE id=$1", [next.project_id]);
+        return { node: next };
+      });
+
+      return result(moved);
+    },
+  );
+
+  server.registerTool(
+    "create_relation",
+    {
+      description:
+        "Create an explicit typed relation between two knowledge nodes in the same project, such as depends_on, implements, replaces, related, blocks or supports.",
+      inputSchema: z.object({
+        source_node_id: z.string().uuid(),
+        target_node_id: z.string().uuid(),
+        relation_type: z.string().trim().min(1).max(80).default("related"),
+      }),
+    },
+    async ({ source_node_id, target_node_id, relation_type }) => {
+      const relation = await tx(async (client) => {
+        if (source_node_id === target_node_id) return { error: "A node cannot relate to itself" };
+
+        const nodes = await client.query(
+          "SELECT id,project_id,title FROM knowledge_nodes WHERE id = ANY($1::uuid[])",
+          [[source_node_id, target_node_id]],
+        );
+        if (nodes.rows.length !== 2) return { error: "One or both knowledge nodes were not found" };
+        if (nodes.rows[0].project_id !== nodes.rows[1].project_id) {
+          return { error: "Relations cannot cross projects" };
+        }
+
+        const projectId = nodes.rows[0].project_id;
+        const inserted = await client.query(
+          `INSERT INTO relations(project_id,source_node_id,target_node_id,relation_type)
+           VALUES($1,$2,$3,$4)
+           ON CONFLICT(source_node_id,target_node_id,relation_type)
+           DO UPDATE SET relation_type=EXCLUDED.relation_type
+           RETURNING *`,
+          [projectId, source_node_id, target_node_id, relation_type],
+        );
+        await appendActivity(client, {
+          projectId,
+          entityType: "relation",
+          entityId: inserted.rows[0].id,
+          action: "created",
+          title: `Knowledge relation: ${relation_type}`,
+          details: { source_node_id, target_node_id, relation_type },
+        });
+        return { relation: inserted.rows[0] };
+      });
+
+      return result(relation);
     },
   );
 
@@ -665,8 +893,12 @@ const handler = createMcpHandler(() => {
 }, { responseMode: "json" });
 
 const nodeHandler = toNodeHandler(handler);
-const validateHost = localhostHostValidation();
-const validateOrigin = localhostOriginValidation();
+
+function hostAllowed(req) {
+  const hostname = String(req.headers.host || "").split(":")[0].toLowerCase();
+  const publicHost = String(process.env.PRBRAIN_PUBLIC_HOST || "").trim().toLowerCase();
+  return hostname === "127.0.0.1" || hostname === "localhost" || (publicHost && hostname === publicHost);
+}
 
 const httpServer = createServer((req, res) => {
   if (req.url === "/health") {
@@ -691,7 +923,13 @@ const httpServer = createServer((req, res) => {
     return;
   }
 
-  if (!validateHost(req, res) || !validateOrigin(req, res)) return;
+  if (!hostAllowed(req)) {
+    res.statusCode = 403;
+    res.setHeader("content-type", "application/json");
+    res.end(JSON.stringify({ error: "Host not allowed" }));
+    return;
+  }
+
   void nodeHandler(req, res);
 });
 
