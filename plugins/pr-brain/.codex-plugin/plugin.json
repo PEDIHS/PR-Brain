@@ -1,0 +1,40 @@
+{
+  "name": "pr-brain",
+  "version": "0.4.0",
+  "description": "Structured project memory and control plane for agents. Read, organize and safely mutate project knowledge, workflows, roadmap, resources, relations and operational metadata through the PR Brain MCP server.",
+  "author": {
+    "name": "Pedram Hasannia"
+  },
+  "homepage": "https://brain.pedramhs.ir",
+  "repository": "https://github.com/PEDIHS/PR-Brain",
+  "keywords": [
+    "project-memory",
+    "project-management",
+    "mcp",
+    "agents",
+    "knowledge-graph",
+    "roadmap",
+    "developer-tools"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "PR Brain",
+    "shortDescription": "Persistent project memory and agent control plane.",
+    "longDescription": "Use PR Brain as the structured source of truth for projects. Agents can inspect project context, resolve entities, create and reorganize workflows and knowledge trees, manage roadmap and resources, analyze impact, create snapshots, and apply transactional multi-entity patches with versioning and audit history.",
+    "developerName": "Pedram Hasannia",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://brain.pedramhs.ir",
+    "defaultPrompt": [
+      "Open the current project in PR Brain and summarize its structure.",
+      "Check project health and show unresolved risks.",
+      "Record these decisions and update the roadmap safely."
+    ],
+    "brandColor": "#6C5CE7",
+    "screenshots": []
+  }
+}
