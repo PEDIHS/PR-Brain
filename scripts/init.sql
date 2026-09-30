@@ -569,3 +569,27 @@ CREATE TABLE IF NOT EXISTS project_snapshots (
 
 CREATE INDEX IF NOT EXISTS idx_project_snapshots_project_time
   ON project_snapshots(project_id, created_at DESC);
+
+
+-- GitOps synchronization ledger. Each applied GitHub changeset is immutable by repo/path/blob SHA.
+CREATE TABLE IF NOT EXISTS github_sync_applied (
+  id bigserial PRIMARY KEY,
+  project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  repository text NOT NULL,
+  git_ref text NOT NULL DEFAULT 'main',
+  file_path text NOT NULL,
+  blob_sha text NOT NULL,
+  change_id text NOT NULL,
+  title text NOT NULL DEFAULT '',
+  agent_name text NOT NULL DEFAULT '',
+  operation_count integer NOT NULL DEFAULT 0,
+  result jsonb NOT NULL DEFAULT '{}'::jsonb,
+  applied_by text NOT NULL DEFAULT 'panel',
+  applied_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(repository,file_path,blob_sha)
+);
+
+CREATE INDEX IF NOT EXISTS idx_github_sync_project_time
+  ON github_sync_applied(project_id,applied_at DESC);
+CREATE INDEX IF NOT EXISTS idx_github_sync_change_id
+  ON github_sync_applied(change_id);
