@@ -986,6 +986,16 @@ export function registerAdvancedTools({
         change_note: z.string().trim().min(1).max(4000),
         dry_run: z.boolean().default(true),
         create_snapshot_before: z.boolean().default(true),
+        source_records: z.array(z.object({
+          repository: z.string().trim().min(1).max(300),
+          git_ref: z.string().trim().min(1).max(180).default("main"),
+          file_path: z.string().trim().min(1).max(2000),
+          blob_sha: z.string().trim().min(6).max(120),
+          change_id: z.string().trim().min(1).max(300),
+          title: z.string().max(1000).default(""),
+          agent_name: z.string().max(300).default(""),
+          operation_count: z.number().int().min(0).max(1000).default(0),
+        })).max(100).default([]),
         operations: z.array(z.object({
           op: z.enum([
             "project.update","workflow.create","workflow.update",
@@ -999,7 +1009,7 @@ export function registerAdvancedTools({
         })).min(1).max(100),
       }),
     },
-    async ({ project, change_note, dry_run, create_snapshot_before, operations }) => {
+    async ({ project, change_note, dry_run, create_snapshot_before, source_records, operations }) => {
       const p=await resolveProject(project);
       if(!p) return result({error:"Project not found"});
       const duplicateRefs=operations.map(o=>o.ref).filter(Boolean).filter((r,i,a)=>a.indexOf(r)!==i);
@@ -1012,6 +1022,7 @@ export function registerAdvancedTools({
           operation_count:operations.length,
           operations:operations.map((o,index)=>({index,op:o.op,ref:o.ref||null,data_keys:Object.keys(o.data)})),
           snapshot_will_be_created:create_snapshot_before,
+          source_records,
           guidance:"Set dry_run=false to commit all operations in one PostgreSQL transaction. Any thrown validation error rolls the whole patch back.",
         });
       }
@@ -1019,6 +1030,20 @@ export function registerAdvancedTools({
       const committed=await tx(async(client)=>{
         const locked=(await client.query("SELECT * FROM projects WHERE id=$1 FOR UPDATE",[p.id])).rows[0];
         if(!locked) throw new Error("Project disappeared before patch");
+
+        if(source_records.length) {
+          for(const source of source_records) {
+            const existing=(await client.query(
+              `SELECT id,applied_at FROM github_sync_applied
+               WHERE repository=$1 AND file_path=$2 AND blob_sha=$3
+               LIMIT 1`,
+              [source.repository,source.file_path,source.blob_sha],
+            )).rows[0];
+            if(existing) {
+              throw new Error(`GitHub changeset already applied: ${source.file_path} @ ${source.blob_sha}`);
+            }
+          }
+        }
 
         let snapshotMeta=null;
         if(create_snapshot_before) {
@@ -1213,10 +1238,25 @@ export function registerAdvancedTools({
         await appendActivity(client,{
           projectId:p.id,entityType:"change_set",entityId:null,action:"committed",
           title:`Atomic project patch: ${change_note.slice(0,180)}`,
-          details:{operation_count:operations.length,refs,snapshot_id:snapshotMeta?.id||null},
+          details:{operation_count:operations.length,refs,snapshot_id:snapshotMeta?.id||null,source_records},
         });
+
+        for(const source of source_records) {
+          await client.query(
+            `INSERT INTO github_sync_applied(
+               project_id,repository,git_ref,file_path,blob_sha,change_id,title,agent_name,operation_count,result,applied_by
+             ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'panel')
+             ON CONFLICT(repository,file_path,blob_sha) DO NOTHING`,
+            [
+              p.id,source.repository,source.git_ref,source.file_path,source.blob_sha,source.change_id,
+              source.title,source.agent_name,source.operation_count,
+              { change_note, snapshot_id:snapshotMeta?.id||null },
+            ],
+          );
+        }
+
         await client.query("UPDATE projects SET updated_at=now() WHERE id=$1",[p.id]);
-        return {project:{id:p.id,name:p.name,slug:p.slug},snapshot:snapshotMeta,refs,results};
+        return {project:{id:p.id,name:p.name,slug:p.slug},snapshot:snapshotMeta,refs,results,source_records};
       });
 
       return result({dry_run:false,committed:true,...committed});
