@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { AsyncLocalStorage } from "node:async_hooks";
 import pg from "pg";
 import { createMcpHandler, McpServer } from "@modelcontextprotocol/server";
 import { toNodeHandler } from "@modelcontextprotocol/node";
@@ -13,6 +14,86 @@ const pool = new Pool({
   max: 8,
   idleTimeoutMillis: 30_000,
 });
+
+const requestContext = new AsyncLocalStorage();
+
+function normalizeAgentName(explicitName, userAgent) {
+  const explicit = String(explicitName || "").trim();
+  if (explicit) return explicit.slice(0, 160);
+  const ua = String(userAgent || "").trim();
+  if (!ua) return "mcp-client";
+  if (/chatgpt/i.test(ua)) return "ChatGPT";
+  if (/codex/i.test(ua)) return "Codex";
+  if (/claude/i.test(ua)) return "Claude";
+  return ua.slice(0, 160);
+}
+
+function summarizeToolInput(input) {
+  if (!input || typeof input !== "object") return {};
+  const hidden = /(password|token|secret|authorization|content|readme|agent_rules)/i;
+  const out = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (hidden.test(key)) {
+      out[key] = "[redacted]";
+      continue;
+    }
+    if (typeof value === "string") out[key] = value.length > 180 ? value.slice(0, 180) + "…" : value;
+    else if (typeof value === "number" || typeof value === "boolean" || value === null) out[key] = value;
+    else if (Array.isArray(value)) out[key] = { type: "array", length: value.length };
+    else if (typeof value === "object") out[key] = { type: "object", keys: Object.keys(value).slice(0, 12) };
+  }
+  return out;
+}
+
+async function inferUsageProjectId(input) {
+  if (!input || typeof input !== "object") return null;
+  if (input.project_id) return String(input.project_id);
+  if (input.project) {
+    const p = await resolveProject(input.project);
+    return p?.id || null;
+  }
+
+  const lookups = [
+    ["workflow_id", "SELECT project_id FROM workflows WHERE id=$1"],
+    ["node_id", "SELECT project_id FROM knowledge_nodes WHERE id=$1"],
+    ["parent_id", "SELECT project_id FROM knowledge_nodes WHERE id=$1"],
+    ["item_id", "SELECT project_id FROM roadmap_items WHERE id=$1"],
+    ["source_node_id", "SELECT project_id FROM knowledge_nodes WHERE id=$1"],
+    ["target_node_id", "SELECT project_id FROM knowledge_nodes WHERE id=$1"],
+  ];
+
+  for (const [key, sql] of lookups) {
+    if (!input[key]) continue;
+    const q = await pool.query(sql, [input[key]]);
+    if (q.rows[0]?.project_id) return q.rows[0].project_id;
+  }
+  return null;
+}
+
+async function recordToolUsage({ toolName, input, success, durationMs, errorCode }) {
+  try {
+    const ctx = requestContext.getStore() || {};
+    const projectId = await inferUsageProjectId(input).catch(() => null);
+    await pool.query(
+      `INSERT INTO mcp_usage_log(
+        project_id,tool_name,agent_name,user_agent,request_id,success,duration_ms,input_summary,error_code
+       ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [
+        projectId,
+        toolName,
+        ctx.agentName || "mcp-client",
+        ctx.userAgent || "",
+        ctx.requestId || "",
+        success,
+        Math.max(0, Math.round(durationMs)),
+        summarizeToolInput(input),
+        errorCode || "",
+      ],
+    );
+  } catch (error) {
+    console.error("MCP usage telemetry failed", error);
+  }
+}
 
 function result(data) {
   return {
@@ -103,7 +184,31 @@ const handler = createMcpHandler(() => {
     },
   );
 
-  server.registerTool(
+
+  const registerTool = (name, config, callback) =>
+    server.registerTool(name, config, async (input, extra) => {
+      const started = performance.now();
+      let success = true;
+      let errorCode = "";
+      try {
+        return await callback(input, extra);
+      } catch (error) {
+        success = false;
+        errorCode = error instanceof Error ? error.name || "Error" : "Error";
+        throw error;
+      } finally {
+        const durationMs = performance.now() - started;
+        void recordToolUsage({
+          toolName: name,
+          input,
+          success,
+          durationMs,
+          errorCode,
+        });
+      }
+    });
+
+  registerTool(
     "open_project",
     {
       description:
@@ -191,7 +296,7 @@ const handler = createMcpHandler(() => {
     },
   );
 
-  server.registerTool(
+  registerTool(
     "get_project_profile",
     {
       description:
@@ -208,7 +313,7 @@ const handler = createMcpHandler(() => {
     },
   );
 
-  server.registerTool(
+  registerTool(
     "get_project_readme",
     {
       description:
@@ -230,7 +335,7 @@ const handler = createMcpHandler(() => {
     },
   );
 
-  server.registerTool(
+  registerTool(
     "update_project_profile",
     {
       description:
@@ -327,7 +432,7 @@ const handler = createMcpHandler(() => {
     },
   );
 
-  server.registerTool(
+  registerTool(
     "update_project_readme",
     {
       description:
@@ -371,7 +476,7 @@ const handler = createMcpHandler(() => {
     },
   );
 
-  server.registerTool(
+  registerTool(
     "upsert_project_resource",
     {
       description:
@@ -434,7 +539,7 @@ const handler = createMcpHandler(() => {
     },
   );
 
-  server.registerTool(
+  registerTool(
     "resolve_project_location",
     {
       description:
@@ -503,7 +608,7 @@ const handler = createMcpHandler(() => {
     },
   );
 
-  server.registerTool(
+  registerTool(
     "list_projects",
     {
       description: "List every project in the workspace with high-level counts and update timestamps.",
@@ -522,7 +627,7 @@ const handler = createMcpHandler(() => {
     },
   );
 
-  server.registerTool(
+  registerTool(
     "get_project_context",
     {
       description:
@@ -611,7 +716,7 @@ const handler = createMcpHandler(() => {
     },
   );
 
-  server.registerTool(
+  registerTool(
     "search_knowledge",
     {
       description: "Search one project's structured knowledge by meaning-bearing text and exact text fragments.",
@@ -647,7 +752,7 @@ const handler = createMcpHandler(() => {
     },
   );
 
-  server.registerTool(
+  registerTool(
     "get_knowledge_node",
     {
       description: "Read one knowledge node with its full content, immutable version history and relations.",
@@ -682,7 +787,7 @@ const handler = createMcpHandler(() => {
     },
   );
 
-  server.registerTool(
+  registerTool(
     "get_project_tree",
     {
       description: "Return the complete project workflow + knowledge tree for deterministic hierarchy reconstruction.",
@@ -708,7 +813,7 @@ const handler = createMcpHandler(() => {
     },
   );
 
-  server.registerTool(
+  registerTool(
     "get_roadmap",
     {
       description: "Read roadmap items for a project, optionally filtered by status.",
@@ -728,7 +833,7 @@ const handler = createMcpHandler(() => {
     },
   );
 
-  server.registerTool(
+  registerTool(
     "get_recent_changes",
     {
       description: "Read the chronological audit trail of project changes.",
@@ -750,7 +855,7 @@ const handler = createMcpHandler(() => {
     },
   );
 
-  server.registerTool(
+  registerTool(
     "create_project",
     {
       description: "Create a new project and its default reusable workflows.",
@@ -800,7 +905,7 @@ const handler = createMcpHandler(() => {
     },
   );
 
-  server.registerTool(
+  registerTool(
     "create_workflow",
     {
       description: "Add a workflow to an existing project.",
@@ -836,7 +941,7 @@ const handler = createMcpHandler(() => {
     },
   );
 
-  server.registerTool(
+  registerTool(
     "save_knowledge",
     {
       description:
@@ -910,7 +1015,7 @@ const handler = createMcpHandler(() => {
     },
   );
 
-  server.registerTool(
+  registerTool(
     "update_knowledge",
     {
       description:
@@ -990,7 +1095,7 @@ const handler = createMcpHandler(() => {
     },
   );
 
-  server.registerTool(
+  registerTool(
     "update_workflow",
     {
       description:
@@ -1039,7 +1144,7 @@ const handler = createMcpHandler(() => {
     },
   );
 
-  server.registerTool(
+  registerTool(
     "move_knowledge",
     {
       description:
@@ -1158,7 +1263,7 @@ const handler = createMcpHandler(() => {
     },
   );
 
-  server.registerTool(
+  registerTool(
     "create_relation",
     {
       description:
@@ -1206,7 +1311,7 @@ const handler = createMcpHandler(() => {
     },
   );
 
-  server.registerTool(
+  registerTool(
     "save_roadmap_item",
     {
       description: "Create a roadmap item linked to an optional workflow or parent roadmap item.",
@@ -1266,7 +1371,7 @@ const handler = createMcpHandler(() => {
     },
   );
 
-  server.registerTool(
+  registerTool(
     "update_roadmap_item",
     {
       description: "Update roadmap execution state and record the change in the project audit trail.",
@@ -1363,7 +1468,17 @@ const httpServer = createServer((req, res) => {
     return;
   }
 
-  void nodeHandler(req, res);
+  const userAgent = String(req.headers["user-agent"] || "");
+  const explicitAgent = req.headers["x-pr-brain-agent"] || req.headers["x-agent-name"] || "";
+  const requestId = String(req.headers["x-request-id"] || req.headers["x-correlation-id"] || "");
+  requestContext.run(
+    {
+      agentName: normalizeAgentName(explicitAgent, userAgent),
+      userAgent: userAgent.slice(0, 500),
+      requestId: requestId.slice(0, 180),
+    },
+    () => void nodeHandler(req, res),
+  );
 });
 
 const port = Number(process.env.PRBRAIN_MCP_PORT || 3001);
