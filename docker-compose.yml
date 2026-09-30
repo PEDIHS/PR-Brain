@@ -17,6 +17,7 @@ services:
 
   app:
     build: .
+    image: pr-brain:latest
     container_name: prbrain-app
     restart: unless-stopped
     env_file: .env
@@ -27,7 +28,7 @@ services:
       - "18250:3000"
 
   mcp:
-    build: .
+    image: pr-brain:latest
     container_name: prbrain-mcp
     restart: unless-stopped
     command: ["node", "mcp/server.mjs"]
