@@ -26,5 +26,17 @@ services:
     ports:
       - "18250:3000"
 
+  mcp:
+    build: .
+    container_name: prbrain-mcp
+    restart: unless-stopped
+    command: ["node", "mcp/server.mjs"]
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:18251:3001"
+
 volumes:
   prbrain_db:
