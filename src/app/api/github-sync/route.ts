@@ -207,9 +207,18 @@ async function callPatch(projectSlug:string,changes:RemoteChange[]) {
         operations:namespaceOperations(changes),
       },
     });
-    const text=response.content?.find((x)=>x.type==="text")?.text || "{}";
-    const parsed=JSON.parse(text);
-    if(parsed.error) throw new Error(parsed.error);
+    const text=response.content?.find((x)=>x.type==="text")?.text || "";
+    let parsed:Record<string,unknown>|null=null;
+    try {
+      parsed=text ? JSON.parse(text) as Record<string,unknown> : {};
+    } catch {
+      const message=text.trim() || "PR Brain MCP returned a non-JSON error";
+      throw new Error(message);
+    }
+    if(response.isError) {
+      throw new Error(String(parsed.error || parsed.message || text || "PR Brain MCP operation failed"));
+    }
+    if(parsed.error) throw new Error(String(parsed.error));
     return parsed;
   } finally {
     await client.close().catch(()=>{});
