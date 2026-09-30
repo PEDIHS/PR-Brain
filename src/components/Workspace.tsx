@@ -5,7 +5,7 @@ import {
   ChevronDown, ChevronLeft, ChevronRight, CircleDot, Clock3, FileClock, FileText,
   FolderTree, GitBranch, History, LayoutDashboard, ListChecks, Loader2, LogOut,
   Milestone, MoreHorizontal, Plus, Search, Settings2, Sparkles, Target, Workflow,
-  X, Globe2, Server, Github, FolderCog, HeartPulse, Pencil, Save
+  X, Globe2, Server, FolderCog, HeartPulse, Pencil, Save
 } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
@@ -334,7 +334,7 @@ export default function Workspace() {
 
             <section className="operational-strip">
               <div className="op-item"><span><Globe2 size={14}/> Domain</span><strong>{data.profile?.primary_domain || "ثبت نشده"}</strong></div>
-              <div className="op-item"><span><Github size={14}/> Repository</span><strong>{data.profile?.repository_url ? data.profile.repository_url.replace("https://github.com/","") : "ثبت نشده"}</strong></div>
+              <div className="op-item"><span><GitBranch size={14}/> Repository</span><strong>{data.profile?.repository_url ? data.profile.repository_url.replace("https://github.com/","") : "ثبت نشده"}</strong></div>
               <div className="op-item"><span><Server size={14}/> Server</span><strong>{data.profile?.server_host || "ثبت نشده"}</strong></div>
               <div className="op-item"><span><FolderCog size={14}/> Deploy</span><strong>{data.profile?.deploy_path || "ثبت نشده"}</strong></div>
               <button className="op-open" onClick={()=>setSection("readme")}>مشاهده پروفایل کامل <ChevronLeft size={14}/></button>
@@ -392,7 +392,7 @@ export default function Workspace() {
             {!profileEditing ? <>
               <section className="profile-grid">
                 <article className="profile-card"><span><Globe2 size={15}/>Domain</span><strong>{data.profile?.primary_domain || "ثبت نشده"}</strong><small>Primary public domain</small></article>
-                <article className="profile-card"><span><Github size={15}/>Repository</span><strong>{data.profile?.repository_url || "ثبت نشده"}</strong><small>Branch: {data.profile?.default_branch || "—"}</small></article>
+                <article className="profile-card"><span><GitBranch size={15}/>Repository</span><strong>{data.profile?.repository_url || "ثبت نشده"}</strong><small>Branch: {data.profile?.default_branch || "—"}</small></article>
                 <article className="profile-card"><span><Server size={15}/>Server</span><strong>{data.profile?.server_host || "ثبت نشده"}</strong><small>{data.profile?.server_alias ? "Alias: "+data.profile.server_alias : "No alias"}</small></article>
                 <article className="profile-card"><span><FolderCog size={15}/>Deploy path</span><strong>{data.profile?.deploy_path || "ثبت نشده"}</strong><small>{data.profile?.runtime || "Runtime ثبت نشده"}</small></article>
                 <article className="profile-card"><span><FileText size={15}/>.env</span><strong>{data.profile?.env_path || "ثبت نشده"}</strong><small>Secrets are never stored in Brain</small></article>
