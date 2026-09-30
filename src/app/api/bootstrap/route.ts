@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   )).rows;
   if (!projects.length) return json({ projects: [], project: null });
   const project = projects.find((p) => p.id === requested) ?? projects[0];
-  const [workflows, nodes, roadmap, activity, metrics, profile, resources] = await Promise.all([
+  const [workflows, nodes, roadmap, activity, metrics, profile, resources, relations] = await Promise.all([
     query("SELECT * FROM workflows WHERE project_id=$1 ORDER BY position,name", [project.id]),
     query(`SELECT id,project_id,workflow_id,parent_id,node_type,title,slug,summary,content,status,metadata,current_version,position,created_at,updated_at
            FROM knowledge_nodes WHERE project_id=$1 ORDER BY position,title`, [project.id]),
@@ -25,6 +25,13 @@ export async function GET(request: Request) {
     query(`SELECT * FROM project_resources
            WHERE project_id=$1
            ORDER BY is_primary DESC,kind,name,environment`, [project.id]),
+    query(`SELECT r.id,r.project_id,r.source_node_id,r.target_node_id,r.relation_type,r.created_at,
+                  s.title source_title,t.title target_title
+           FROM relations r
+           JOIN knowledge_nodes s ON s.id=r.source_node_id
+           JOIN knowledge_nodes t ON t.id=r.target_node_id
+           WHERE r.project_id=$1
+           ORDER BY r.created_at DESC`, [project.id]),
   ]);
   return json({
     projects,
@@ -36,5 +43,6 @@ export async function GET(request: Request) {
     metrics: metrics.rows[0],
     profile: profile.rows[0] || null,
     resources: resources.rows,
+    relations: relations.rows,
   });
 }
