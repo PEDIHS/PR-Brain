@@ -1,0 +1,20 @@
+{
+  "name": "pr-brain-plugins",
+  "interface": {
+    "displayName": "PR Brain Plugins"
+  },
+  "plugins": [
+    {
+      "name": "pr-brain",
+      "source": {
+        "source": "local",
+        "path": "./plugins/pr-brain"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}
