@@ -534,3 +534,24 @@ ON CONFLICT(project_id,kind,name,environment) DO UPDATE SET value=EXCLUDED.value
 INSERT INTO project_resources(project_id,kind,name,value,environment,is_primary,metadata)
 SELECT p.id,'service','database','prbrain-db','production',true,'{"engine":"PostgreSQL 16"}'::jsonb FROM projects p WHERE p.slug='pr-brain'
 ON CONFLICT(project_id,kind,name,environment) DO UPDATE SET value=EXCLUDED.value,is_primary=EXCLUDED.is_primary,metadata=EXCLUDED.metadata,updated_at=now();
+
+
+-- MCP / Agent usage telemetry. Stores operational call metadata only; never stores secrets or full content.
+CREATE TABLE IF NOT EXISTS mcp_usage_log (
+  id bigserial PRIMARY KEY,
+  project_id uuid REFERENCES projects(id) ON DELETE SET NULL,
+  tool_name text NOT NULL,
+  agent_name text NOT NULL DEFAULT 'unknown',
+  user_agent text NOT NULL DEFAULT '',
+  request_id text NOT NULL DEFAULT '',
+  success boolean NOT NULL DEFAULT true,
+  duration_ms integer NOT NULL DEFAULT 0,
+  input_summary jsonb NOT NULL DEFAULT '{}'::jsonb,
+  error_code text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_mcp_usage_time ON mcp_usage_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_mcp_usage_project_time ON mcp_usage_log(project_id,created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_mcp_usage_agent_time ON mcp_usage_log(agent_name,created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_mcp_usage_tool_time ON mcp_usage_log(tool_name,created_at DESC);
