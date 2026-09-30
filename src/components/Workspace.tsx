@@ -454,10 +454,10 @@ export default function Workspace() {
               >
                 <div className="project-dropdown-head"><span>همه پروژه‌ها</span><b>{data.projects.length}</b></div>
                 <div className="project-dropdown-list">
-                  {data.projects.map(p=><button key={p.id} className={p.id===data.project.id?"active":""} onClick={()=>switchProject(p.id)}>
+                  {data.projects.map(p=><button key={p.id} className={p.id===projectId?"active":""} onClick={()=>switchProject(p.id)}>
                     <span className="project-choice-dot" style={{background:p.accent}}/>
                     <div><strong>{p.name}</strong><small>{p.slug} · {p.node_count} node</small></div>
-                    {p.id===data.project.id && <CheckCircle2 size={15}/>}
+                    {p.id===projectId && <CheckCircle2 size={15}/>}
                   </button>)}
                 </div>
                 <button className="project-dropdown-create" onClick={()=>{setProjectMenuOpen(false);setCreateKind("project")}}><Plus size={14}/> پروژه جدید</button>
