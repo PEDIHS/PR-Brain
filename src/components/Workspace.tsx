@@ -5,7 +5,7 @@ import {
   ChevronDown, ChevronLeft, ChevronRight, CircleDot, Clock3, FileClock, FileText,
   FolderTree, GitBranch, History, LayoutDashboard, ListChecks, Loader2, LogOut,
   Milestone, MoreHorizontal, Plus, Search, Settings2, Sparkles, Target, Workflow,
-  X, Globe2, Server, FolderCog, HeartPulse, Pencil, Save
+  X, Globe2, Server, FolderCog, HeartPulse, Pencil, Save, RefreshCw, GitCommit, CloudDownload
 } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Tree, type NodeRendererProps } from "react-arborist";
@@ -52,6 +52,22 @@ type Detail = {
   node:NodeRow;
   versions:Array<{id:number;version:number;change_note:string;actor:string;created_at:string}>;
   relations:Array<GraphRelation & {source_title?:string;target_title?:string}>;
+};
+type GitHubSyncState = {
+  project:{id:string;name:string;slug:string};
+  repository:string;
+  git_ref:string;
+  sync_path:string;
+  summary:{changesets:number;operations:number;by_type:Record<string,number>};
+  pending:Array<{
+    path:string;sha:string;html_url:string;id:string;title:string;agent:string;
+    created_at:string|null;notes:string;operation_count:number;
+    operations:Array<{op:string;ref:string|null;data_keys:string[]}>;
+  }>;
+  recent_applied:Array<{
+    file_path:string;blob_sha:string;change_id:string;title:string;agent_name:string;
+    operation_count:number;applied_at:string;
+  }>;
 };
 type AgentAnalytics = {
   range_days:number;
@@ -224,6 +240,11 @@ export default function Workspace() {
   const [agentAnalytics,setAgentAnalytics] = useState<AgentAnalytics|null>(null);
   const [analyticsDays,setAnalyticsDays] = useState(7);
   const [analyticsLoading,setAnalyticsLoading] = useState(false);
+  const [syncOpen,setSyncOpen] = useState(false);
+  const [syncState,setSyncState] = useState<GitHubSyncState|null>(null);
+  const [syncLoading,setSyncLoading] = useState(false);
+  const [syncApplying,setSyncApplying] = useState(false);
+  const [syncError,setSyncError] = useState("");
 
   const load = useCallback(async (nextProject?:string) => {
     setLoading(true);
@@ -270,6 +291,49 @@ export default function Workspace() {
     window.addEventListener("keydown",handler);
     return ()=>window.removeEventListener("keydown",handler);
   },[]);
+
+  const refreshGitHubSync = useCallback(async (open=false) => {
+    if(!projectId) return;
+    if(open) setSyncOpen(true);
+    setSyncLoading(true);
+    setSyncError("");
+    try {
+      const res=await fetch("/api/github-sync?projectId="+encodeURIComponent(projectId),{cache:"no-store"});
+      const body=await res.json();
+      if(!res.ok) throw new Error(body.error||"GitHub sync failed");
+      setSyncState(body);
+    } catch(error) {
+      setSyncError(error instanceof Error?error.message:"GitHub sync failed");
+    } finally {
+      setSyncLoading(false);
+    }
+  },[projectId]);
+
+  const applyGitHubSync = useCallback(async () => {
+    if(!projectId || !syncState?.summary.changesets) return;
+    setSyncApplying(true);
+    setSyncError("");
+    try {
+      const res=await fetch("/api/github-sync",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({projectId}),
+      });
+      const body=await res.json();
+      if(!res.ok) throw new Error(body.error||"GitHub update failed");
+      await load(projectId);
+      await refreshGitHubSync(false);
+    } catch(error) {
+      setSyncError(error instanceof Error?error.message:"GitHub update failed");
+    } finally {
+      setSyncApplying(false);
+    }
+  },[projectId,syncState,load,refreshGitHubSync]);
+
+  useEffect(()=>{
+    if(!projectId) return;
+    refreshGitHubSync(false);
+  },[projectId,refreshGitHubSync]);
 
   useEffect(()=>{
     if(section!=="agents" || !projectId) return;
@@ -506,6 +570,10 @@ export default function Workspace() {
           </div>
           <div className="topbar-actions">
             <button className="search-trigger" onClick={()=>setSearchOpen(true)}><Search size={16}/><span>جستجو در پروژه</span><kbd>⌘ K</kbd></button>
+            <button className={"sync-button "+((syncState?.summary.changesets||0)>0?"has-updates":"")} onClick={()=>refreshGitHubSync(true)}>
+              <RefreshCw size={15}/><span>بروزرسانی</span>
+              {(syncState?.summary.changesets||0)>0 && <em>{syncState?.summary.changesets}</em>}
+            </button>
             <button className="secondary-button" onClick={()=>setCreateKind("knowledge")}><Plus size={15}/> ثبت دانش</button>
           </div>
         </header>
@@ -971,6 +1039,70 @@ export default function Workspace() {
           </form>}
         </>}
       </aside>}
+
+      {syncOpen && <div className="overlay" onMouseDown={()=>setSyncOpen(false)}>
+        <motion.section
+          className="github-sync-modal"
+          onMouseDown={e=>e.stopPropagation()}
+          initial={{opacity:0,y:10,scale:.985}}
+          animate={{opacity:1,y:0,scale:1}}
+          exit={{opacity:0,y:10,scale:.985}}
+        >
+          <header className="github-sync-head">
+            <div className="github-sync-icon"><GitBranch size={19}/></div>
+            <div>
+              <span className="eyebrow">GITHUB SYNC</span>
+              <h3>بروزرسانی پروژه از GitHub</h3>
+              <p>{syncState ? syncState.repository+" · "+syncState.git_ref : "در حال اتصال به GitHub…"}</p>
+            </div>
+            <button className="icon-button" onClick={()=>setSyncOpen(false)}><X size={18}/></button>
+          </header>
+
+          {syncLoading ? <div className="sync-loading"><Loader2 className="spin"/><strong>در حال بررسی تغییرات GitHub…</strong></div>
+          : syncError ? <div className="sync-error"><strong>بروزرسانی قابل انجام نیست</strong><span>{syncError}</span><button className="secondary-button" onClick={()=>refreshGitHubSync(false)}><RefreshCw size={14}/> تلاش دوباره</button></div>
+          : syncState && <>
+            <div className="sync-summary-grid">
+              <article><span>Change Sets</span><strong>{syncState.summary.changesets}</strong><small>تغییر اعمال‌نشده</small></article>
+              <article><span>Operations</span><strong>{syncState.summary.operations}</strong><small>عملیات اتمیک</small></article>
+              <article><span>Repository</span><strong className="sync-repo-name">{syncState.repository}</strong><small>{syncState.sync_path}</small></article>
+            </div>
+
+            {syncState.pending.length ? <div className="sync-pending-list">
+              {syncState.pending.map((item,index)=><article className="sync-change-card" key={item.path}>
+                <div className="sync-change-index">{String(index+1).padStart(2,"0")}</div>
+                <div className="sync-change-main">
+                  <div className="sync-change-title"><strong>{item.title}</strong><span>{item.operation_count} operation</span></div>
+                  <p>{item.notes||item.path}</p>
+                  <div className="sync-change-meta">
+                    <span><Sparkles size={11}/>{item.agent}</span>
+                    {item.created_at&&<span><Clock3 size={11}/>{fmtDate(item.created_at)}</span>}
+                    <span><GitCommit size={11}/>{item.sha.slice(0,8)}</span>
+                  </div>
+                  <div className="sync-op-pills">
+                    {item.operations.map((op,i)=><span key={i}>{op.op}</span>)}
+                  </div>
+                </div>
+              </article>)}
+            </div> : <div className="sync-clean">
+              <CheckCircle2 size={34}/>
+              <strong>پروژه بروز است</strong>
+              <span>هیچ Change Set جدیدی در GitHub منتظر اعمال نیست.</span>
+            </div>}
+
+            <footer className="github-sync-footer">
+              <div>
+                <span>قبل از اعمال، Snapshot کامل پروژه گرفته می‌شود.</span>
+                <small>همه Change Setهای فعلی در یک transaction اعمال می‌شوند؛ در صورت خطا rollback می‌شوند.</small>
+              </div>
+              <button className="secondary-button" onClick={()=>refreshGitHubSync(false)} disabled={syncLoading||syncApplying}><RefreshCw size={14}/> بررسی مجدد</button>
+              <button className="primary-button sync-apply" onClick={applyGitHubSync} disabled={syncApplying||!syncState.summary.changesets}>
+                {syncApplying?<Loader2 size={14} className="spin"/>:<CloudDownload size={15}/>}
+                {syncApplying?"در حال اعمال…":"اعمال همه تغییرات"}
+              </button>
+            </footer>
+          </>}
+        </motion.section>
+      </div>}
 
       {searchOpen && <div className="overlay" onMouseDown={()=>setSearchOpen(false)}>
         <div className="search-modal" onMouseDown={e=>e.stopPropagation()}>
