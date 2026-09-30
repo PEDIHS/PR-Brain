@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Activity, Archive, Blocks, BookOpen, Box, BrainCircuit, CalendarDays, CheckCircle2,
+  Activity, Archive, Blocks, BookOpen, BrainCircuit, CalendarDays, CheckCircle2,
   ChevronDown, ChevronLeft, ChevronRight, CircleDot, Clock3, FileClock, FileText,
   FolderTree, GitBranch, History, LayoutDashboard, ListChecks, Loader2, LogOut,
   Milestone, MoreHorizontal, Plus, Search, Settings2, Sparkles, Target, Workflow,
@@ -122,7 +122,7 @@ function ArborNode({node,style,dragHandle}:NodeRendererProps<TreeItem>) {
     <div style={style} ref={dragHandle} className="arbor-row-wrap">
       <motion.div
         className={"arbor-node "+(node.isSelected?"selected":"")}
-        style={{paddingInlineStart:10+node.level*22}}
+        style={{paddingInlineStart:10+node.level*22,"--level":node.level} as React.CSSProperties}
         initial={{opacity:0,y:3}}
         animate={{opacity:1,y:0}}
         transition={{duration:.16}}
@@ -247,11 +247,6 @@ export default function Workspace() {
     setDetail(await res.json());
     setDetailLoading(false);
   };
-
-  const workflowsWithNodes = useMemo(()=> {
-    if(!data) return [];
-    return data.workflows.map(w=>({...w,nodes:data.nodes.filter(n=>n.workflow_id===w.id)}));
-  },[data]);
 
   const selectedWorkflow = useMemo(
     ()=>data?.workflows.find(w=>w.id===selectedWorkflowId)||null,
