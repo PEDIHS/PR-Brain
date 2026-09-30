@@ -1,6 +1,6 @@
 {
   "name": "pr-brain",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -19,7 +19,9 @@
     "pg": "8.23.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "zod": "4.6.5"
+    "zod": "4.6.5",
+    "motion": "13.4.4",
+    "react-arborist": "3.16.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.0",
