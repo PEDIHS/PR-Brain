@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap');
+
 :root{
   --bg:#f4f5f7;--surface:#ffffff;--surface-2:#f8f9fb;--ink:#17191f;--muted:#6f7580;
   --line:#e3e6ea;--line-strong:#d5d9df;--sidebar:#171a20;--sidebar-2:#20242c;--sidebar-text:#d9dde4;
@@ -293,8 +295,6 @@ textarea{resize:vertical;line-height:1.8}
    PR BRAIN UI SYSTEM v2 — Product-grade workspace
    Visual language: editorial SaaS / engineering workspace
    ========================================================= */
-@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap');
-
 :root{
   --bg:#f3f5f6;
   --surface:#ffffff;
