@@ -53,6 +53,16 @@ type Detail = {
   versions:Array<{id:number;version:number;change_note:string;actor:string;created_at:string}>;
   relations:Array<GraphRelation & {source_title?:string;target_title?:string}>;
 };
+type AgentAnalytics = {
+  range_days:number;
+  project_id:string|null;
+  summary:{total_calls:number;successful_calls:number;failed_calls:number;active_agents:number;avg_latency_ms:number;max_latency_ms:number;success_rate:number};
+  agents:Array<{agent_name:string;calls:number;successes:number;failures:number;avg_latency_ms:number;last_seen:string}>;
+  tools:Array<{tool_name:string;calls:number;successes:number;failures:number;avg_latency_ms:number;last_used:string}>;
+  daily:Array<{day:string;calls:number;successes:number;failures:number}>;
+  recent:Array<{id:number;tool_name:string;agent_name:string;success:boolean;duration_ms:number;error_code:string;input_summary:Record<string,unknown>;created_at:string;project_name:string|null;project_slug:string|null}>;
+  projects:Array<{id:string;name:string;slug:string;calls:number;successes:number;avg_latency_ms:number}>;
+};
 
 const sections = [
   {id:"overview",label:"نمای کلی",icon:LayoutDashboard},
@@ -60,6 +70,7 @@ const sections = [
   {id:"knowledge",label:"درخت دانش",icon:FolderTree},
   {id:"roadmap",label:"رودمپ",icon:Milestone},
   {id:"activity",label:"تغییرات",icon:Activity},
+  {id:"agents",label:"Agent Usage",icon:Sparkles},
 ] as const;
 
 const typeLabels:Record<string,string> = {
@@ -209,6 +220,10 @@ export default function Workspace() {
   const [editing,setEditing] = useState(false);
   const [profileEditing,setProfileEditing] = useState(false);
   const [mobileNav,setMobileNav] = useState(false);
+  const [projectMenuOpen,setProjectMenuOpen] = useState(false);
+  const [agentAnalytics,setAgentAnalytics] = useState<AgentAnalytics|null>(null);
+  const [analyticsDays,setAnalyticsDays] = useState(7);
+  const [analyticsLoading,setAnalyticsLoading] = useState(false);
 
   const load = useCallback(async (nextProject?:string) => {
     setLoading(true);
@@ -216,11 +231,29 @@ export default function Workspace() {
     const res = await fetch("/api/bootstrap"+(id?`?projectId=${encodeURIComponent(id)}`:""),{cache:"no-store"});
     const json = await res.json();
     setData(json);
-    if (json.project?.id) setProjectId(json.project.id);
+    if (json.project?.id) {
+      setProjectId(json.project.id);
+      window.localStorage.setItem("prbrain_active_project",json.project.id);
+    }
     setLoading(false);
   },[projectId]);
 
-  useEffect(()=>{ load(""); },[]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(()=>{
+    const saved = window.localStorage.getItem("prbrain_active_project") || "";
+    load(saved);
+  },[]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const switchProject = useCallback(async (id:string) => {
+    if(!id || id===projectId) { setProjectMenuOpen(false); return; }
+    setProjectMenuOpen(false);
+    setDetail(null);
+    setEditing(false);
+    setSelectedWorkflowId("");
+    setKnowledgeMode("tree");
+    setSection("overview");
+    window.localStorage.setItem("prbrain_active_project",id);
+    await load(id);
+  },[load,projectId]);
 
   useEffect(()=>{
     if(!data?.workflows.length) { setSelectedWorkflowId(""); return; }
@@ -237,6 +270,15 @@ export default function Workspace() {
     window.addEventListener("keydown",handler);
     return ()=>window.removeEventListener("keydown",handler);
   },[]);
+
+  useEffect(()=>{
+    if(section!=="agents" || !projectId) return;
+    setAnalyticsLoading(true);
+    fetch(`/api/agent-analytics?projectId=${encodeURIComponent(projectId)}&days=${analyticsDays}`,{cache:"no-store"})
+      .then(r=>r.json())
+      .then(setAgentAnalytics)
+      .finally(()=>setAnalyticsLoading(false));
+  },[section,projectId,analyticsDays]);
 
   useEffect(()=>{
     if (!searchOpen || queryText.trim().length<2 || !projectId) { setSearchResults([]); return; }
@@ -396,18 +438,31 @@ export default function Workspace() {
 
         <div className="project-switcher">
           <label>پروژه فعال</label>
-          <button className="project-current">
-            <span className="project-dot" style={{background:data.project.accent}}/>
-            <span><b>{data.project.name}</b><small>{data.project.status}</small></span>
-            <ChevronDown size={15}/>
-          </button>
-          <div className="project-menu-inline">
-            {data.projects.filter(p=>p.id!==data.project?.id).slice(0,4).map(p=>
-              <button key={p.id} onClick={()=>{setProjectId(p.id);load(p.id);setDetail(null)}}>
-                <span className="tiny-dot" style={{background:p.accent}}/>{p.name}
-              </button>
-            )}
-            <button className="add-project" onClick={()=>setCreateKind("project")}><Plus size={14}/> پروژه جدید</button>
+          <div className="project-switcher-control">
+            <button className={"project-current "+(projectMenuOpen?"open":"")} onClick={()=>setProjectMenuOpen(v=>!v)} aria-expanded={projectMenuOpen}>
+              <span className="project-dot" style={{background:data.project.accent}}/>
+              <span><b>{data.project.name}</b><small>{data.project.slug}</small></span>
+              <ChevronDown size={15}/>
+            </button>
+            <AnimatePresence>
+              {projectMenuOpen && <motion.div
+                className="project-dropdown"
+                initial={{opacity:0,y:-6,scale:.985}}
+                animate={{opacity:1,y:0,scale:1}}
+                exit={{opacity:0,y:-6,scale:.985}}
+                transition={{duration:.14}}
+              >
+                <div className="project-dropdown-head"><span>همه پروژه‌ها</span><b>{data.projects.length}</b></div>
+                <div className="project-dropdown-list">
+                  {data.projects.map(p=><button key={p.id} className={p.id===data.project.id?"active":""} onClick={()=>switchProject(p.id)}>
+                    <span className="project-choice-dot" style={{background:p.accent}}/>
+                    <div><strong>{p.name}</strong><small>{p.slug} · {p.node_count} node</small></div>
+                    {p.id===data.project.id && <CheckCircle2 size={15}/>}
+                  </button>)}
+                </div>
+                <button className="project-dropdown-create" onClick={()=>{setProjectMenuOpen(false);setCreateKind("project")}}><Plus size={14}/> پروژه جدید</button>
+              </motion.div>}
+            </AnimatePresence>
           </div>
         </div>
 
@@ -800,6 +855,87 @@ export default function Workspace() {
               </section>)}
             </div>
           </div>}
+
+          {section==="agents" && <motion.div className="page agents-page" initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}>
+            <div className="page-heading">
+              <div>
+                <span className="eyebrow">MCP TELEMETRY</span>
+                <h2>مصرف Agentها و پلاگین‌ها</h2>
+                <p>هر Tool Call واقعی MCP با Agent، پروژه، latency و نتیجه ثبت می‌شود.</p>
+              </div>
+              <div className="analytics-range">
+                {[1,7,30].map(d=><button key={d} className={analyticsDays===d?"active":""} onClick={()=>setAnalyticsDays(d)}>{d===1?"24h":d+" روز"}</button>)}
+              </div>
+            </div>
+
+            {analyticsLoading && !agentAnalytics ? <div className="analytics-loading"><Loader2 className="spin"/> در حال خواندن Usage…</div> : agentAnalytics && <>
+              <div className="agent-metric-grid">
+                <article><span>Tool Calls</span><strong>{agentAnalytics.summary.total_calls}</strong><small>{analyticsDays===1?"۲۴ ساعت اخیر":analyticsDays+" روز اخیر"}</small></article>
+                <article><span>Active Agents</span><strong>{agentAnalytics.summary.active_agents}</strong><small>client / agent شناسایی‌شده</small></article>
+                <article><span>Success Rate</span><strong>{agentAnalytics.summary.success_rate}%</strong><small>{agentAnalytics.summary.failed_calls} خطا</small></article>
+                <article><span>Avg Latency</span><strong>{agentAnalytics.summary.avg_latency_ms}<em>ms</em></strong><small>بیشترین {agentAnalytics.summary.max_latency_ms}ms</small></article>
+              </div>
+
+              <div className="analytics-grid">
+                <section className="panel agent-ranking">
+                  <div className="panel-head"><div><span className="eyebrow">AGENTS</span><h3>Agentهای فعال</h3></div><span>{agentAnalytics.agents.length}</span></div>
+                  <div className="ranking-list">
+                    {agentAnalytics.agents.map((a,i)=>{
+                      const max=Math.max(1,agentAnalytics.agents[0]?.calls||1);
+                      return <div className="ranking-row" key={a.agent_name}>
+                        <span className="rank-num">{String(i+1).padStart(2,"0")}</span>
+                        <div className="rank-main"><div><strong>{a.agent_name}</strong><small>{a.avg_latency_ms}ms avg · {fmtDate(a.last_seen)}</small></div><div className="rank-bar"><i style={{width:(a.calls/max*100)+"%"}}/></div></div>
+                        <b>{a.calls}</b>
+                      </div>
+                    })}
+                    {!agentAnalytics.agents.length&&<div className="empty-inline">هنوز Agent call ثبت نشده.</div>}
+                  </div>
+                </section>
+
+                <section className="panel tool-ranking">
+                  <div className="panel-head"><div><span className="eyebrow">TOOLS</span><h3>پرمصرف‌ترین ابزارها</h3></div><span>{agentAnalytics.tools.length}</span></div>
+                  <div className="ranking-list">
+                    {agentAnalytics.tools.slice(0,12).map((t,i)=>{
+                      const max=Math.max(1,agentAnalytics.tools[0]?.calls||1);
+                      return <div className="ranking-row" key={t.tool_name}>
+                        <span className="tool-glyph"><Workflow size={13}/></span>
+                        <div className="rank-main"><div><strong>{t.tool_name}</strong><small>{t.failures} error · {t.avg_latency_ms}ms avg</small></div><div className="rank-bar tool"><i style={{width:(t.calls/max*100)+"%"}}/></div></div>
+                        <b>{t.calls}</b>
+                      </div>
+                    })}
+                  </div>
+                </section>
+              </div>
+
+              <section className="panel usage-timeline">
+                <div className="panel-head"><div><span className="eyebrow">ACTIVITY</span><h3>روند درخواست‌ها</h3></div><span>{agentAnalytics.summary.total_calls} calls</span></div>
+                <div className="usage-bars">
+                  {agentAnalytics.daily.map(d=>{
+                    const max=Math.max(1,...agentAnalytics.daily.map(x=>x.calls));
+                    return <div className="usage-day" key={d.day}>
+                      <div className="usage-bar-shell"><i style={{height:Math.max(5,d.calls/max*100)+"%"}}/><em style={{height:(d.failures/Math.max(1,d.calls))*100+"%"}}/></div>
+                      <strong>{d.calls}</strong><small>{new Intl.DateTimeFormat("fa-IR",{month:"short",day:"numeric"}).format(new Date(d.day))}</small>
+                    </div>
+                  })}
+                  {!agentAnalytics.daily.length&&<div className="empty-inline">داده زمانی هنوز وجود ندارد.</div>}
+                </div>
+              </section>
+
+              <section className="panel recent-agent-calls">
+                <div className="panel-head"><div><span className="eyebrow">LIVE LOG</span><h3>آخرین درخواست‌های Agent</h3></div></div>
+                <div className="agent-call-table">
+                  <div className="agent-call-head"><span>Agent</span><span>Tool</span><span>Result</span><span>Latency</span><span>Time</span></div>
+                  {agentAnalytics.recent.slice(0,30).map(r=><div className="agent-call-row" key={r.id}>
+                    <span><i className="agent-status-dot"/>{r.agent_name}</span>
+                    <code>{r.tool_name}</code>
+                    <span className={r.success?"call-ok":"call-error"}>{r.success?"Success":"Error"}</span>
+                    <span>{r.duration_ms}ms</span>
+                    <span>{fmtDate(r.created_at)}</span>
+                  </div>)}
+                </div>
+              </section>
+            </>}
+          </motion.div>}
 
           {section==="activity" && <div className="page activity-page">
             <div className="page-heading"><div><span className="eyebrow">IMMUTABLE ACTIVITY</span><h2>لاگ تغییرات پروژه</h2><p>ردپای تصمیم‌ها، ویرایش‌ها و تغییر وضعیت‌ها.</p></div></div>
