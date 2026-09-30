@@ -1,0 +1,181 @@
+{
+  "version": 1,
+  "id": "20260930-stage2-catalog-commerce-trust",
+  "project": "taktook",
+  "title": "Stage 2 discovery — catalog, ranking, checkout and trust rules",
+  "agent": "ChatGPT Product Discovery",
+  "created_at": "2026-09-30T22:10:00+03:30",
+  "notes": "Capture confirmed discovery on canonical catalog governance, smart search, offer ranking, approved brands, restricted-category permissions, multi-seller checkout, inventory reservation, seller SLA, shipping, QR pickup, settlement, returns, authenticity, anti-circumvention chat and monetization direction.",
+  "operations": [
+    {
+      "op": "knowledge.update",
+      "data": {
+        "node_id": "468906af-005a-4e26-9885-2f6caa6cd468",
+        "expected_version": 1,
+        "title": "Part Search & Compatibility",
+        "summary": "جستجوی هوشمند فارسی روی Catalog ساختاریافته خودرو/قطعه با فیلتر دقیق، قطعات مشترک و لوازم عمومی.",
+        "content": "هسته جستجوی TAKTOOK باید روی Catalog ساختاریافته و بسیار دقیق ایران بنا شود، اما تجربه کاربر می‌تواند کاملاً هوشمند و متنی باشد. کاربر می‌تواند عبارت‌هایی مثل «پلوس دنا» یا «چراغ جلو ساینا چپ» را جستجو کند و سیستم باید intent را به Vehicle/Variant/Part/Side نزدیک نگاشت کند، سپس نتایج را با فیلترهایی مثل برند خودرو، مدل، تیپ، سال، موتور، گیربکس، سمت چپ/راست و ویژگی‌های اختصاصی قطعه محدود کند. مسیر انتخاب دستی Vehicle → Variant → Part نیز باید همیشه وجود داشته باشد. یک قطعه می‌تواند به چند خودرو، تیپ و سال سازگار متصل شود و این سازگاری باید در Catalog مرکزی ذخیره شود. فروشنده در صورت اختلاف با سازگاری ثبت‌شده، درخواست فنی ثبت می‌کند و تیم تخصصی بعد از بررسی Catalog را اصلاح می‌کند. لوازم عمومی مثل روغن، باتری، ابزار و لامپ می‌توانند در شاخه Universal Parts باشند ولی در همان Search سراسری نمایش داده شوند. این پروژه فعلاً برای بازار ایران طراحی می‌شود و coverage دیتاست باید خودروها، تیپ‌ها و شرایط بازار ایران را اولویت دهد."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "catalog_governance",
+      "data": {
+        "workflow_id": "ca36ff99-b24c-4ef9-a3bd-dc15614504b9",
+        "node_type": "architecture",
+        "title": "Canonical Vehicle & Parts Catalog",
+        "slug": "canonical-vehicle-parts-catalog",
+        "summary": "Catalog مرکزی تحت کنترل TAKTOOK برای خودرو، تیپ، سال، موتور، گیربکس، قطعه، سمت و سازگاری.",
+        "content": "Catalog اصلی باید تحت کنترل TAKTOOK باشد. ساختار پیشنهادی شامل Vehicle Brand → Model → Variant/Trim → Production Year Range → Engine → Transmission و سپس Part Taxonomy است. Part باید ویژگی‌هایی مانند side/position، category، canonical name و compatibility links داشته باشد. فروشنده هنگام افزودن Offer فقط از entityهای تاییدشده انتخاب می‌کند. اگر خودرو، تیپ یا قطعه موردنظر موجود نبود، فروشنده «پیدا نکردم / درخواست افزودن» ثبت می‌کند؛ درخواست به Queue تیم Catalog/Technical می‌رود و پس از بررسی، entity جدید یا compatibility جدید به Catalog اضافه می‌شود. ایجاد آزاد و مستقیم خودرو یا قطعه Canonical توسط فروشنده مجاز نیست."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "offer_ranking",
+      "data": {
+        "workflow_id": "ac5417c9-aba6-4653-9c7c-c0a5d6f47993",
+        "node_type": "requirement",
+        "title": "Offer Ranking & Seller Discovery",
+        "slug": "offer-ranking-seller-discovery",
+        "summary": "رتبه‌بندی Offerها با اولویت اصالت و اعتماد فروشنده، رضایت، سابقه، قیمت و نزدیکی جغرافیایی با سهم اکتشاف برای فروشگاه‌های جدید.",
+        "content": "برای یک قطعه Canonical، Offer چند فروشنده روی یک صفحه/نتیجه قابل مقایسه نمایش داده می‌شود. Ranking نباید فقط ارزان‌ترین قیمت باشد. اولویت اصلی اعتماد و اصالت فروشگاه است؛ سپس سابقه سفارش موفق و رضایت مشتری، کیفیت عملکرد و fulfillment، قیمت، و نزدیکی جغرافیایی به کاربر. فروشگاه نزدیک‌تر می‌تواند در شرایط مشابه رتبه بالاتری بگیرد تا تحویل حضوری یا ارسال سریع‌تر منطقی شود. فروشگاه‌های جدید باید سهم کنترل‌شده‌ای از نمایش تصادفی/اکتشافی داشته باشند تا بدون سابقه برای همیشه پایین نمانند. الگوریتم باید explainable باشد و امکان weight tuning و anti-gaming داشته باشد."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "brand_condition",
+      "data": {
+        "workflow_id": "ca36ff99-b24c-4ef9-a3bd-dc15614504b9",
+        "node_type": "requirement",
+        "title": "Approved Brands, Authenticity & Condition Taxonomy",
+        "slug": "approved-brands-authenticity-condition",
+        "summary": "فروشنده فقط برندهای تاییدشده را انتخاب می‌کند و نوع اصالت/وضعیت نو، OEM، aftermarket، تعمیرشده یا استوک ساختاریافته ثبت می‌شود.",
+        "content": "هر Offer باید برند قطعه را از Brand Registry تاییدشده TAKTOOK انتخاب کند؛ تایپ آزاد برند برای انتشار مستقیم مجاز نیست. Brand Registry می‌تواند برندهای OEM/فابریکی، Original، Aftermarket معتبر و سایر برندهای تاییدشده را پوشش دهد و قابلیت ارتباط با دسته قطعه/خودرو داشته باشد. وضعیت کالا نیز باید ساختاریافته باشد: نو، OEM/فابریکی، Original، Aftermarket، بازسازی/تعمیرشده و استوک/دست‌دوم با Gradeهای تعریف‌شده. برای کالاهای نو، خط‌وخش یا مغایرت با وضعیت اعلام‌شده می‌تواند مبنای مرجوعی باشد. برای استوک، عکس واقعی همان قطعه و بیان وضعیت/ایرادها الزامی است. ضمانت استوک می‌تواند شامل سلامت عملکرد طبق Offer باشد اما اصالت کارخانه‌ای همیشه قابل تضمین نیست و باید شفاف نمایش داده شود."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "restricted_sales",
+      "data": {
+        "workflow_id": "007a2ae7-f7ca-4423-a965-794b121055ab",
+        "node_type": "requirement",
+        "title": "Restricted Category Seller Permissions",
+        "slug": "restricted-category-seller-permissions",
+        "summary": "دسترسی فروشنده به بعضی دسته‌های حساس فقط در صورت مجوز معتبر مرتبط فعال می‌شود.",
+        "content": "فروش همه دسته‌ها برای همه فروشندگان یکسان نیست. برای قطعات حساس مانند ایربگ، ترمز، فرمان، ECU، قطعات موتور و سایر دسته‌هایی که مجوز خاص می‌طلبند، Permission فروش باید بر اساس مدارک و مجوزهای تاییدشده فروشنده فعال شود. اگر فروشنده مجوز لازم را ندارد، سیستم هنگام ثبت Offer باید دلیل عدم دسترسی و مجوز موردنیاز را نمایش دهد. در صورت امکان، اعتبار مجوز از API/سامانه مرجع رسمی بررسی می‌شود؛ در غیر این صورت review انسانی انجام می‌شود. Permission باید قابل انقضا و بازبینی باشد."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "multi_seller_checkout",
+      "data": {
+        "workflow_id": "ac5417c9-aba6-4653-9c7c-c0a5d6f47993",
+        "node_type": "architecture",
+        "title": "Multi-Seller Cart & Order Orchestration",
+        "slug": "multi-seller-cart-order-orchestration",
+        "summary": "یک سبد و یک پرداخت برای کاربر، با Split داخلی به Sub-orderهای مستقل هر فروشنده و محاسبه جداگانه حمل.",
+        "content": "کاربر باید بتواند Offerهای چند فروشنده را در یک Cart داشته باشد و فقط یک Checkout و یک پرداخت انجام دهد. سیستم بعد از پرداخت، سفارش مادر را به Sub-orderهای مستقل هر Seller تقسیم می‌کند. قیمت کالا، هزینه ارسال، وضعیت fulfillment، tracking، refund و settlement هر Sub-order مستقل محاسبه و نگهداری می‌شود، در حالی که UX مشتری یک خرید واحد و فاکتور تجمیعی نشان می‌دهد. هزینه حمل برای هر فروشنده جدا محاسبه می‌شود و در خلاصه Checkout باید شفاف تفکیک شود."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "reservation_sla",
+      "data": {
+        "workflow_id": "e16c3d95-9e05-487b-b472-dcaf621d0d13",
+        "node_type": "requirement",
+        "title": "Inventory Reservation & Seller Acceptance SLA",
+        "slug": "inventory-reservation-seller-sla",
+        "summary": "موجودی هنگام Checkout موقتاً رزرو می‌شود و Seller برای تایید موجودی و آماده‌سازی SLA دارد.",
+        "content": "وقتی خریدار وارد فرآیند پرداخت می‌شود، موجودی Offer باید برای مدت کوتاه رزرو شود تا oversell رخ ندهد. بازه موردنظر فعلی حدود 10 تا 15 دقیقه است و UI باید countdown واضح نمایش دهد. اگر پرداخت کامل نشد، reservation آزاد می‌شود. بعد از پرداخت، فروشنده باید در بازه SLA سفارش را تایید و برای ارسال آماده کند؛ جهت فعلی حداکثر تا 24 ساعت است ولی حد دقیق باید در Discovery بعدی نهایی شود. اگر فروشنده اعلام کند موجودی ندارد، refund باید سریع آغاز شود و Availability Reliability فروشنده امتیاز منفی بگیرد. فعلاً جریمه مالی برای ناموجودی در نظر گرفته نشده است."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "seller_shipping",
+      "data": {
+        "workflow_id": "e16c3d95-9e05-487b-b472-dcaf621d0d13",
+        "node_type": "runbook",
+        "title": "Seller-Managed Shipping & Tracking",
+        "slug": "seller-managed-shipping-tracking",
+        "summary": "در فاز اول حمل توسط فروشنده انجام می‌شود و Tracking در TAKTOOK ثبت و مانیتور می‌شود.",
+        "content": "در فاز اولیه TAKTOOK سرویس حمل اختصاصی ندارد. فروشنده از روش‌های پست، تیپاکس، باربری یا روش‌های مجاز دیگر استفاده می‌کند و کد رهگیری/اطلاعات حمل را داخل Sub-order ثبت می‌کند. TAKTOOK باید تا حد امکان وضعیت Tracking را به‌صورت هوشمند از carrier بررسی و برای مشتری نمایش دهد. فروشنده پیش از بسته‌بندی/ارسال باید تصاویر موردنیاز کالا را برای اثبات وضعیت ثبت کند. هزینه ارسال در هر Sub-order جداگانه محاسبه و به کاربر نشان داده می‌شود."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "pickup_qr",
+      "data": {
+        "workflow_id": "e16c3d95-9e05-487b-b472-dcaf621d0d13",
+        "node_type": "requirement",
+        "title": "In-Store Pickup QR Handoff",
+        "slug": "in-store-pickup-qr-handoff",
+        "summary": "تحویل حضوری بعد از پرداخت با QR/کد سفارش داخل اپ فروشنده تایید می‌شود و همچنان تراکنش داخل TAKTOOK باقی می‌ماند.",
+        "content": "برای Offerهایی که Pickup دارند، کاربر ابتدا داخل TAKTOOK پرداخت می‌کند و QR/کد تحویل دریافت می‌کند. در فروشگاه، فروشنده با اپ/پنل موبایل TAKTOOK کد را اسکن می‌کند، سفارش و کالا را مشاهده می‌کند و تحویل را تایید می‌کند. این رویداد Delivery Proof است و مانع تبدیل تحویل حضوری به معامله خارج از پلتفرم می‌شود. QR باید یکبارمصرف، محدود به همان Sub-order و دارای کنترل replay باشد."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "settlement_returns",
+      "data": {
+        "workflow_id": "007a2ae7-f7ca-4423-a965-794b121055ab",
+        "node_type": "requirement",
+        "title": "Delivery Confirmation, Settlement & Returns Policy",
+        "slug": "delivery-settlement-returns-policy",
+        "summary": "تسویه هدف فعلی 24 ساعت پس از Delivery است؛ مرجوعی بر اساس نوع قطعه، بازشدن بسته و نصب/استفاده متفاوت بررسی می‌شود.",
+        "content": "وقتی carrier یا QR Pickup تحویل را ثبت کند، برای مشتری پیام/اعلان ارسال می‌شود تا دریافت و رضایت را تایید کند یا مشکل ثبت کند. جهت محصول فعلی، settlement فروشنده 24 ساعت بعد از ثبت تحویل انجام می‌شود مگر اینکه dispute/return معتبر باز شده باشد. تایید صریح رضایت مشتری می‌تواند settlement را نهایی کند، اما جزئیات حقوقی و استثناهای تقلب/عیب پنهان باید قبل از نهایی‌شدن Policy بررسی شوند. مرجوعی Category-based است: کالای نصب‌نشده/بازنشده ساده‌تر مرجوع می‌شود؛ قطعات نصب‌شده، برقی، ECU یا مواردی که امکان ایجاد آسیب توسط مصرف‌کننده وجود دارد نیازمند Expert Review هستند. برای استوک، شرایط ضمانت و سلامت عملکرد باید در Offer به‌وضوح اعلام شود."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "authenticity_evidence",
+      "data": {
+        "workflow_id": "ca36ff99-b24c-4ef9-a3bd-dc15614504b9",
+        "node_type": "requirement",
+        "title": "Authenticity Evidence & Dispute Proof",
+        "slug": "authenticity-evidence-dispute-proof",
+        "summary": "Serial/QR، بسته‌بندی، تصاویر قبل ارسال و مدارک سفارش برای بررسی اصالت و اختلاف نگهداری می‌شوند.",
+        "content": "برای کالاهای نو، Serial/QR/لیبل و مشخصات بسته‌بندی در صورت وجود باید به Offer و Shipment Evidence متصل شوند. فروشنده پیش از ارسال از کالای واقعی و بسته‌بندی عکس ثبت می‌کند. در dispute اصالت، داده Catalog/Brand، serial/QR، تصاویر پیش از ارسال، وضعیت بسته، اسناد فروشنده و مدارک مشتری با هم بررسی می‌شوند. برای قطعات استوک، اصل کارخانه‌ای همیشه قابل تضمین نیست؛ بنابراین ادعای اصالت و ضمانت باید با نوع کالای استوک سازگار و شفاف باشد."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "chat_guardrails",
+      "data": {
+        "workflow_id": "ac5417c9-aba6-4653-9c7c-c0a5d6f47993",
+        "node_type": "requirement",
+        "title": "Marketplace Chat Anti-Circumvention",
+        "slug": "marketplace-chat-anti-circumvention",
+        "summary": "چت خریدار/فروشنده مجاز است ولی اطلاعات تماس و پرداخت خارج پلتفرم به‌صورت هوشمند فیلتر و تخلف تکراری محدود می‌شود.",
+        "content": "TAKTOOK باید چت محدود خریدار و فروشنده برای سوال درباره قطعه و سفارش داشته باشد، اما شماره موبایل، شماره کارت، لینک، آیدی پیام‌رسان/شبکه اجتماعی و تلاش برای انتقال خرید خارج پلتفرم باید detect/mask/block شوند. سیستم در تخلف اولیه warning می‌دهد و در تکرار می‌تواند چت را موقتاً ببندد، Trust Score را کاهش دهد یا پرونده moderation ایجاد کند. Guardrail باید روی متن و در آینده روی تصویر/OCR نیز قابل توسعه باشد."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "revenue_direction",
+      "data": {
+        "workflow_id": "007a2ae7-f7ca-4423-a965-794b121055ab",
+        "node_type": "decision",
+        "title": "Revenue Direction — Variable Commission Plus Seller Services",
+        "slug": "revenue-direction-variable-commission",
+        "summary": "جهت درآمدی: کمیسیون متغیر دسته‌ای، سپس اشتراک حرفه‌ای فروشنده، تبلیغات و جایگاه ویژه.",
+        "content": "جهت ترجیحی فعلی برای درآمد، کمیسیون متغیر بر اساس دسته/نوع قطعه است؛ نمونه‌های ذهنی 5٪، 8٪ یا 10٪ هستند اما درصد نهایی هنوز تصمیم نشده و باید با margin و economics هر دسته تعیین شود. در آینده جریان‌های مکمل شامل Seller Subscription، تبلیغات و Sponsored/Featured Placement اضافه می‌شوند. هر جایگاه ویژه باید از Ranking اعتماد و قوانین اصالت عبور کند و نباید صرفاً با پرداخت، فروشنده کم‌اعتماد را بالاتر از فروشنده معتبر قرار دهد."
+      }
+    },
+    {
+      "op": "relation.create",
+      "data": {
+        "source_node_id": "$catalog_governance",
+        "target_node_id": "468906af-005a-4e26-9885-2f6caa6cd468",
+        "relation_type": "supports"
+      }
+    },
+    {
+      "op": "relation.create",
+      "data": {
+        "source_node_id": "$multi_seller_checkout",
+        "target_node_id": "1f1adc3e-8abc-4a3c-89b3-690928dba1a0",
+        "relation_type": "implements"
+      }
+    }
+  ]
+}
