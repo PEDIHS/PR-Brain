@@ -4,6 +4,7 @@ import pg from "pg";
 import { createMcpHandler, McpServer } from "@modelcontextprotocol/server";
 import { toNodeHandler } from "@modelcontextprotocol/node";
 import * as z from "zod/v4";
+import { registerAdvancedTools } from "./advanced-tools.mjs";
 
 const { Pool } = pg;
 const databaseUrl = process.env.DATABASE_URL;
@@ -176,11 +177,11 @@ async function readProjectProfile(projectId, client = pool) {
 
 const handler = createMcpHandler(() => {
   const server = new McpServer(
-    { name: "pr-brain", version: "0.3.0" },
+    { name: "pr-brain", version: "0.4.0" },
     {
       capabilities: { tools: {} },
       instructions:
-        "PR Brain is the structured source of truth for projects. Start substantial work with open_project using the project name, slug or UUID. Its Project Profile and README are the operational map: domain, repository, server, deploy path, services, rules, workflows, roadmap and recent changes. Never invent missing locations; register verified values with update_project_profile or upsert_project_resource. Persist durable facts and decisions through structured write tools so history stays versioned and auditable.",
+        "PR Brain is the structured source of truth and mutation API for projects. Start substantial work with open_project, then use agent_capabilities when you need the full API surface. Prefer resolve_entity before mutations when you only know human names. Use snapshots and apply_project_patch for coordinated multi-entity changes. Never invent missing operational locations, never store secrets, and preserve version/audit history for durable decisions and implementation changes.",
     },
   );
 
@@ -1426,6 +1427,16 @@ const handler = createMcpHandler(() => {
       return result({ item });
     },
   );
+
+  registerAdvancedTools({
+    registerTool,
+    pool,
+    tx,
+    result,
+    slugify,
+    resolveProject,
+    appendActivity,
+  });
 
   return server;
 }, { responseMode: "json" });
