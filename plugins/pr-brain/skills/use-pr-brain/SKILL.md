@@ -159,3 +159,27 @@ When completing PR Brain operations, report:
 2. What changed.
 3. Verification result.
 4. Any unresolved conflict, missing location, blocked item or risk.
+
+
+## GitHub staged-change workflow
+
+When the user wants agents to prepare changes in GitHub first and apply them later from the PR Brain panel, use the GitOps changeset flow.
+
+Repository:
+- `PEDIHS/PR-Brain`
+
+Changeset directory:
+- `project-sync/<project-slug>/changes/`
+
+Rules:
+1. Inspect the project with `open_project` and resolve IDs/entities before authoring the change.
+2. Create a **new JSON file** for each coherent change. Never rewrite a previously applied changeset.
+3. Follow `project-sync/README.md`.
+4. Keep each changeset at or below 100 operations, and keep the total pending batch at or below 100 operations.
+5. Use local `ref` names plus `$ref` references for entities created in the same changeset.
+6. Never commit secret values.
+7. Commit the changeset to the repository. Do not apply it directly to PR Brain unless the user explicitly asks for immediate application.
+8. The user can then use the **بروزرسانی** control in PR Brain to preview and atomically apply all pending GitHub changes.
+9. PR Brain takes a snapshot before application and records the Git blob SHA in its synchronization ledger, so the same version cannot be applied twice.
+
+Use the GitHub connector/app when it is available to create the changeset commit.
