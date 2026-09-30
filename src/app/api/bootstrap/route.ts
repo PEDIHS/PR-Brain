@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   )).rows;
   if (!projects.length) return json({ projects: [], project: null });
   const project = projects.find((p) => p.id === requested) ?? projects[0];
-  const [workflows, nodes, roadmap, activity, metrics] = await Promise.all([
+  const [workflows, nodes, roadmap, activity, metrics, profile, resources] = await Promise.all([
     query("SELECT * FROM workflows WHERE project_id=$1 ORDER BY position,name", [project.id]),
     query(`SELECT id,project_id,workflow_id,parent_id,node_type,title,slug,summary,content,status,metadata,current_version,position,created_at,updated_at
            FROM knowledge_nodes WHERE project_id=$1 ORDER BY position,title`, [project.id]),
@@ -21,6 +21,20 @@ export async function GET(request: Request) {
       (SELECT count(*)::int FROM roadmap_items WHERE project_id=$1 AND status <> 'done') open_roadmap,
       (SELECT count(*)::int FROM knowledge_versions v JOIN knowledge_nodes n ON n.id=v.node_id WHERE n.project_id=$1) versions,
       (SELECT count(*)::int FROM activity_log WHERE project_id=$1 AND created_at >= now()-interval '7 days') changes_7d`, [project.id]),
+    query("SELECT * FROM project_profiles WHERE project_id=$1", [project.id]),
+    query(`SELECT * FROM project_resources
+           WHERE project_id=$1
+           ORDER BY is_primary DESC,kind,name,environment`, [project.id]),
   ]);
-  return json({ projects, project, workflows: workflows.rows, nodes: nodes.rows, roadmap: roadmap.rows, activity: activity.rows, metrics: metrics.rows[0] });
+  return json({
+    projects,
+    project,
+    workflows: workflows.rows,
+    nodes: nodes.rows,
+    roadmap: roadmap.rows,
+    activity: activity.rows,
+    metrics: metrics.rows[0],
+    profile: profile.rows[0] || null,
+    resources: resources.rows,
+  });
 }
