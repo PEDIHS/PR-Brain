@@ -555,3 +555,17 @@ CREATE INDEX IF NOT EXISTS idx_mcp_usage_time ON mcp_usage_log(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_mcp_usage_project_time ON mcp_usage_log(project_id,created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_mcp_usage_agent_time ON mcp_usage_log(agent_name,created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_mcp_usage_tool_time ON mcp_usage_log(tool_name,created_at DESC);
+
+
+-- Durable project snapshots for safe agent-led change batches and rollback inspection.
+CREATE TABLE IF NOT EXISTS project_snapshots (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  snapshot jsonb NOT NULL,
+  created_by text NOT NULL DEFAULT 'mcp',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_snapshots_project_time
+  ON project_snapshots(project_id, created_at DESC);
