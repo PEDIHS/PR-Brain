@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "id": "20260930-enable-github-gitops-sync",
+  "project": "pr-brain",
+  "title": "Register GitHub GitOps synchronization",
+  "agent": "PR Brain Builder",
+  "created_at": "2026-09-30T22:30:00+02:00",
+  "notes": "Register the GitHub changeset staging path as an operational integration resource.",
+  "operations": [
+    {
+      "op": "resource.upsert",
+      "data": {
+        "kind": "integration",
+        "name": "github-gitops-sync",
+        "value": "PEDIHS/PR-Brain:project-sync/pr-brain/changes",
+        "environment": "production",
+        "is_primary": false,
+        "metadata": {
+          "version": "1.0",
+          "mode": "changeset",
+          "atomic": true
+        }
+      }
+    }
+  ]
+}
