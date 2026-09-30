@@ -103,8 +103,11 @@ async function loadSync(projectId:string) {
      WHERE project_id=$1 AND repository=$2 AND git_ref=$3
      ORDER BY applied_at DESC`,
     [p.id,REPOSITORY,GIT_REF],
-  )).rows;
-  const appliedKeys=new Set(applied.map((r:{file_path:string;blob_sha:string})=>`${r.file_path}:${r.blob_sha}`));
+  )).rows as Array<{
+    file_path:string;blob_sha:string;change_id:string;title:string;agent_name:string;
+    operation_count:number;applied_at:string;
+  }>;
+  const appliedKeys=new Set(applied.map(r=>`${r.file_path}:${r.blob_sha}`));
   const pending=remote.filter(r=>!appliedKeys.has(`${r.path}:${r.sha}`));
 
   return {
