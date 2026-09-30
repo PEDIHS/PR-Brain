@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "pr-brain": {
+      "type": "http",
+      "url": "https://brain.pedramhs.ir/mcp",
+      "headers": {
+        "Authorization": "Bearer ${PRBRAIN_MCP_TOKEN}",
+        "X-PR-Brain-Agent": "Codex PR Brain Plugin"
+      }
+    }
+  }
+}
