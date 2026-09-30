@@ -7,7 +7,9 @@ import {
   Milestone, MoreHorizontal, Plus, Search, Settings2, Sparkles, Target, Workflow,
   X, Globe2, Server, FolderCog, HeartPulse, Pencil, Save
 } from "lucide-react";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Tree, type NodeRendererProps } from "react-arborist";
+import { motion, AnimatePresence } from "motion/react";
 
 type Project = {
   id:string; name:string; slug:string; description:string; status:string; accent:string;
@@ -63,6 +65,17 @@ const statusMap:Record<string,string> = {
   planned:"برنامه‌ریزی", in_progress:"در حال انجام", blocked:"مسدود", done:"انجام‌شده",
 };
 
+const workflowPalette = [
+  {color:"#6C5CE7",soft:"#F0EDFF"},
+  {color:"#0984E3",soft:"#EAF5FF"},
+  {color:"#00A884",soft:"#E7F8F3"},
+  {color:"#E17055",soft:"#FFF0EC"},
+  {color:"#D99B26",soft:"#FFF7E4"},
+  {color:"#B05AC9",soft:"#F8ECFC"},
+  {color:"#D64C7F",soft:"#FDECF3"},
+  {color:"#4D7C8A",soft:"#EAF3F5"},
+] as const;
+
 function fmtDate(input:string) {
   try { return new Intl.DateTimeFormat("fa-IR",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(input)); }
   catch { return input; }
@@ -77,21 +90,99 @@ function TypeIcon({type,size=15}:{type:string;size?:number}) {
   return <FileText size={size}/>;
 }
 
-function NodeBranch({node,nodes,depth,onOpen}:{node:NodeRow;nodes:NodeRow[];depth:number;onOpen:(n:NodeRow)=>void}) {
-  const children = nodes.filter(n=>n.parent_id===node.id);
-  const [expanded,setExpanded] = useState(true);
+type TreeItem = {
+  id:string;
+  name:string;
+  node:NodeRow;
+  children?:TreeItem[];
+};
+
+function buildTree(nodes:NodeRow[]):TreeItem[] {
+  const ids=new Set(nodes.map(n=>n.id));
+  const children=new Map<string,NodeRow[]>();
+  for(const n of nodes) {
+    const parent=n.parent_id && ids.has(n.parent_id) ? n.parent_id : "__root__";
+    const list=children.get(parent)||[];
+    list.push(n);
+    children.set(parent,list);
+  }
+  for(const list of children.values()) list.sort((a,b)=>a.position-b.position||a.title.localeCompare(b.title));
+  const walk=(parent:string):TreeItem[] => (children.get(parent)||[]).map(n=>({
+    id:n.id,
+    name:n.title,
+    node:n,
+    children:walk(n.id),
+  }));
+  return walk("__root__");
+}
+
+function ArborNode({node,style,dragHandle}:NodeRendererProps<TreeItem>) {
+  const item=node.data.node;
   return (
-    <>
-      <button className="tree-row" style={{paddingRight:12+depth*18}} onClick={()=>onOpen(node)}>
-        <span className="tree-expander" onClick={(e)=>{e.stopPropagation();setExpanded(!expanded)}}>
-          {children.length ? (expanded?<ChevronDown size={13}/>:<ChevronLeft size={13}/>) : <span className="tree-dot"/>}
+    <div style={style} ref={dragHandle} className="arbor-row-wrap">
+      <motion.div
+        className={"arbor-node "+(node.isSelected?"selected":"")}
+        style={{paddingInlineStart:10+node.level*22}}
+        initial={{opacity:0,y:3}}
+        animate={{opacity:1,y:0}}
+        transition={{duration:.16}}
+        whileHover={{x:-2}}
+        onClick={(e)=>node.handleClick(e)}
+      >
+        <span className="tree-connector" aria-hidden="true"/>
+        <button className="arbor-toggle" onClick={(e)=>{e.stopPropagation();node.toggle()}}>
+          {node.isLeaf ? <CircleDot size={9}/> : node.isOpen ? <ChevronDown size={14}/> : <ChevronLeft size={14}/>}
+        </button>
+        <span className={"tree-type type-"+item.node_type}><TypeIcon type={item.node_type}/></span>
+        <span className="arbor-copy">
+          <strong>{item.title}</strong>
+          <small>{item.summary || typeLabels[item.node_type] || item.node_type}</small>
         </span>
-        <span className={"tree-type type-"+node.node_type}><TypeIcon type={node.node_type}/></span>
-        <span className="tree-title">{node.title}</span>
-        <span className="tree-version">v{node.current_version}</span>
-      </button>
-      {expanded && children.map(c=><NodeBranch key={c.id} node={c} nodes={nodes} depth={depth+1} onOpen={onOpen}/>)}
-    </>
+        <span className="arbor-meta">{typeLabels[item.node_type]||item.node_type}</span>
+        <span className="tree-version">v{item.current_version}</span>
+      </motion.div>
+    </div>
+  );
+}
+
+function KnowledgeTree({
+  nodes,selection,onOpen,onMove
+}:{
+  nodes:NodeRow[];
+  selection?:string;
+  onOpen:(n:NodeRow)=>void;
+  onMove:(ids:string[],parentId:string|null,index:number)=>Promise<void>;
+}) {
+  const host=useRef<HTMLDivElement>(null);
+  const [width,setWidth]=useState(800);
+  const treeData=useMemo(()=>buildTree(nodes),[nodes]);
+
+  useEffect(()=>{
+    if(!host.current) return;
+    const ro=new ResizeObserver(([entry])=>setWidth(Math.max(320,Math.floor(entry.contentRect.width))));
+    ro.observe(host.current);
+    return ()=>ro.disconnect();
+  },[]);
+
+  if(!nodes.length) return <div className="tree-empty-state"><FolderTree size={28}/><strong>این Workflow هنوز خالی است</strong><span>یک سند، تصمیم یا پوشه جدید ایجاد کن.</span></div>;
+
+  return (
+    <div className="knowledge-tree-shell" ref={host}>
+      <Tree<TreeItem>
+        data={treeData}
+        width={width}
+        height={Math.min(680,Math.max(360,nodes.length*48+28))}
+        indent={24}
+        rowHeight={48}
+        overscanCount={8}
+        openByDefault
+        selection={selection}
+        onActivate={(n)=>onOpen(n.data.node)}
+        onMove={async({dragIds,parentId,index})=>onMove(dragIds,parentId,index)}
+      >
+        {ArborNode}
+      </Tree>
+    </div>
   );
 }
 
@@ -99,6 +190,7 @@ export default function Workspace() {
   const [data,setData] = useState<Bootstrap|null>(null);
   const [loading,setLoading] = useState(true);
   const [section,setSection] = useState<typeof sections[number]["id"]>("overview");
+  const [selectedWorkflowId,setSelectedWorkflowId] = useState<string>("");
   const [projectId,setProjectId] = useState<string>("");
   const [detail,setDetail] = useState<Detail|null>(null);
   const [detailLoading,setDetailLoading] = useState(false);
@@ -122,6 +214,13 @@ export default function Workspace() {
   },[projectId]);
 
   useEffect(()=>{ load(""); },[]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(()=>{
+    if(!data?.workflows.length) { setSelectedWorkflowId(""); return; }
+    if(!selectedWorkflowId || !data.workflows.some(w=>w.id===selectedWorkflowId)) {
+      setSelectedWorkflowId(data.workflows[0].id);
+    }
+  },[data,selectedWorkflowId]);
 
   useEffect(()=>{
     const handler = (e:KeyboardEvent) => {
@@ -153,6 +252,15 @@ export default function Workspace() {
     if(!data) return [];
     return data.workflows.map(w=>({...w,nodes:data.nodes.filter(n=>n.workflow_id===w.id)}));
   },[data]);
+
+  const selectedWorkflow = useMemo(
+    ()=>data?.workflows.find(w=>w.id===selectedWorkflowId)||null,
+    [data,selectedWorkflowId]
+  );
+  const selectedWorkflowNodes = useMemo(
+    ()=>data?.nodes.filter(n=>n.workflow_id===selectedWorkflowId)||[],
+    [data,selectedWorkflowId]
+  );
 
   const roadmapByStatus = useMemo(()=>{
     const base:{[k:string]:RoadmapRow[]}={planned:[],in_progress:[],blocked:[],done:[]};
@@ -241,6 +349,26 @@ export default function Workspace() {
     setSaving(false);
   }
 
+  async function moveKnowledge(dragIds:string[],parentId:string|null,index:number) {
+    if(!selectedWorkflowId || !dragIds.length) return;
+    setSaving(true);
+    try {
+      await Promise.all(dragIds.map((id,offset)=>fetch("/api/knowledge/"+id,{
+        method:"PATCH",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          workflowId:selectedWorkflowId,
+          parentId,
+          position:(index+offset+1)*10,
+          changeNote:"Reorganized from visual knowledge tree",
+        }),
+      }).then(async r=>{ if(!r.ok) throw new Error((await r.json()).error||"Move failed"); })));
+      await load();
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function moveRoadmap(item:RoadmapRow,status:string) {
     await fetch("/api/roadmap",{method:"PATCH",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({id:item.id,status,progress:status==="done"?100:item.progress})});
@@ -295,13 +423,20 @@ export default function Workspace() {
 
         <div className="workflow-nav">
           <div className="nav-caption-row"><span className="nav-caption">WORKFLOWS</span><button onClick={()=>setCreateKind("workflow")}><Plus size={13}/></button></div>
-          {data.workflows.map(w=><button key={w.id} onClick={()=>{setSection("knowledge");setMobileNav(false)}}>
-            <Workflow size={15}/><span>{w.name}</span><small>{data.nodes.filter(n=>n.workflow_id===w.id).length}</small>
-          </button>)}
+          {data.workflows.map((w,i)=><motion.button
+            key={w.id}
+            className={selectedWorkflowId===w.id?"active-workflow":""}
+            style={{"--wf":workflowPalette[i%workflowPalette.length].color,"--wf-soft":workflowPalette[i%workflowPalette.length].soft} as React.CSSProperties}
+            whileHover={{x:-3}}
+            whileTap={{scale:.98}}
+            onClick={()=>{setSelectedWorkflowId(w.id);setSection("knowledge");setMobileNav(false)}}
+          >
+            <span className="workflow-nav-mark"/><span>{w.name}</span><small>{data.nodes.filter(n=>n.workflow_id===w.id).length}</small>
+          </motion.button>)}
         </div>
 
         <div className="sidebar-bottom">
-          <button><Settings2 size={16}/><span>تنظیمات</span></button>
+          <button onClick={()=>{setSection("readme");setProfileEditing(true);setMobileNav(false)}}><Settings2 size={16}/><span>تنظیمات پروژه</span></button>
           <button onClick={logout}><LogOut size={16}/><span>خروج</span></button>
         </div>
       </aside>
@@ -351,11 +486,18 @@ export default function Workspace() {
               <section className="panel">
                 <div className="panel-head"><div><span className="eyebrow">WORKFLOWS</span><h3>نقشه کاری پروژه</h3></div><button className="text-button" onClick={()=>setCreateKind("workflow")}><Plus size={14}/> افزودن</button></div>
                 <div className="workflow-cards">
-                  {data.workflows.map((w,i)=><button key={w.id} className="workflow-card" onClick={()=>setSection("knowledge")}>
+                  {data.workflows.map((w,i)=><motion.button
+                    key={w.id}
+                    className="workflow-card"
+                    style={{"--wf":workflowPalette[i%workflowPalette.length].color,"--wf-soft":workflowPalette[i%workflowPalette.length].soft} as React.CSSProperties}
+                    whileHover={{y:-2,scale:1.005}}
+                    whileTap={{scale:.99}}
+                    onClick={()=>{setSelectedWorkflowId(w.id);setSection("knowledge")}}
+                  >
                     <span className="workflow-index">{String(i+1).padStart(2,"0")}</span>
                     <div><strong>{w.name}</strong><p>{w.description}</p></div>
                     <span className="workflow-count">{data.nodes.filter(n=>n.workflow_id===w.id).length}</span>
-                  </button>)}
+                  </motion.button>)}
                 </div>
               </section>
 
@@ -446,26 +588,80 @@ export default function Workspace() {
             </form>}
           </div>}
 
-          {section==="knowledge" && <div className="page knowledge-page">
-            <div className="page-heading"><div><span className="eyebrow">KNOWLEDGE TREE</span><h2>حافظه ساختاریافته پروژه</h2><p>هر تغییر نسخه‌بندی و در Activity Log ثبت می‌شود.</p></div><button className="primary-button" onClick={()=>setCreateKind("knowledge")}><Plus size={15}/> ثبت دانش</button></div>
-            <div className="tree-workflows">
-              {workflowsWithNodes.map(w=><section className="tree-workflow" key={w.id}>
-                <div className="tree-workflow-head">
-                  <div><span className="workflow-symbol"><Workflow size={15}/></span><div><strong>{w.name}</strong><small>{w.description}</small></div></div>
-                  <span>{w.nodes.length} آیتم</span>
-                </div>
-                <div className="tree-body">
-                  {w.nodes.filter(n=>!n.parent_id).length
-                    ? w.nodes.filter(n=>!n.parent_id).map(n=><NodeBranch key={n.id} node={n} nodes={data.nodes} depth={0} onOpen={openNode}/>)
-                    : <div className="empty-inline">هنوز محتوایی در این Workflow ثبت نشده.</div>}
-                </div>
-              </section>)}
-              {data.nodes.filter(n=>!n.workflow_id).length>0 && <section className="tree-workflow">
-                <div className="tree-workflow-head"><div><span className="workflow-symbol"><Box size={15}/></span><div><strong>بدون Workflow</strong><small>دانش عمومی پروژه</small></div></div></div>
-                <div className="tree-body">{data.nodes.filter(n=>!n.workflow_id && !n.parent_id).map(n=><NodeBranch key={n.id} node={n} nodes={data.nodes} depth={0} onOpen={openNode}/>)}</div>
-              </section>}
+          {section==="knowledge" && <motion.div
+            className="page knowledge-page"
+            initial={{opacity:0,y:8}}
+            animate={{opacity:1,y:0}}
+            transition={{duration:.24,ease:"easeOut"}}
+          >
+            <div className="page-heading knowledge-heading">
+              <div>
+                <span className="eyebrow">KNOWLEDGE EXPLORER</span>
+                <h2>درخت دانش پروژه</h2>
+                <p>ساختار واقعی پوشه‌ها و اسناد؛ قابل انتخاب، باز/بسته‌شدن و Drag & Drop با ثبت نسخه.</p>
+              </div>
+              <button className="primary-button" onClick={()=>setCreateKind("knowledge")}><Plus size={15}/> ثبت دانش</button>
             </div>
-          </div>}
+
+            <div className="workflow-tabs" role="tablist" aria-label="Workflow selector">
+              {data.workflows.map((w,i)=>{
+                const p=workflowPalette[i%workflowPalette.length];
+                const count=data.nodes.filter(n=>n.workflow_id===w.id).length;
+                return <motion.button
+                  key={w.id}
+                  role="tab"
+                  aria-selected={selectedWorkflowId===w.id}
+                  className={selectedWorkflowId===w.id?"active":""}
+                  style={{"--wf":p.color,"--wf-soft":p.soft} as React.CSSProperties}
+                  whileHover={{y:-2}}
+                  whileTap={{scale:.97}}
+                  onClick={()=>setSelectedWorkflowId(w.id)}
+                >
+                  <span className="workflow-tab-icon"><Workflow size={15}/></span>
+                  <span><strong>{w.name}</strong><small>{count} node</small></span>
+                </motion.button>
+              })}
+            </div>
+
+            <AnimatePresence mode="wait">
+              <motion.section
+                key={selectedWorkflowId}
+                className="knowledge-explorer panel"
+                initial={{opacity:0,scale:.995}}
+                animate={{opacity:1,scale:1}}
+                exit={{opacity:0,scale:.995}}
+                transition={{duration:.18}}
+                style={{
+                  "--wf":workflowPalette[Math.max(0,data.workflows.findIndex(w=>w.id===selectedWorkflowId))%workflowPalette.length].color,
+                  "--wf-soft":workflowPalette[Math.max(0,data.workflows.findIndex(w=>w.id===selectedWorkflowId))%workflowPalette.length].soft,
+                } as React.CSSProperties}
+              >
+                <div className="knowledge-explorer-head">
+                  <div className="workflow-orb"><Workflow size={18}/></div>
+                  <div>
+                    <span className="eyebrow">ACTIVE WORKFLOW</span>
+                    <h3>{selectedWorkflow?.name || "Workflow"}</h3>
+                    <p>{selectedWorkflow?.description || "Workflow description"}</p>
+                  </div>
+                  <div className="knowledge-head-stats">
+                    <span><b>{selectedWorkflowNodes.length}</b> node</span>
+                    <span><b>{selectedWorkflowNodes.filter(n=>n.node_type==="decision").length}</b> decision</span>
+                    <span><b>{selectedWorkflowNodes.filter(n=>n.node_type==="architecture").length}</b> architecture</span>
+                  </div>
+                </div>
+                <div className="tree-toolbar">
+                  <span><CircleDot size={12}/> برای بازکردن روی Node کلیک کن؛ برای تغییر شاخه Drag کن.</span>
+                  {saving && <span className="tree-saving"><Loader2 size={12} className="spin"/> در حال ذخیره ساختار…</span>}
+                </div>
+                <KnowledgeTree
+                  nodes={selectedWorkflowNodes}
+                  selection={detail?.node.id}
+                  onOpen={openNode}
+                  onMove={moveKnowledge}
+                />
+              </motion.section>
+            </AnimatePresence>
+          </motion.div>}
 
           {section==="roadmap" && <div className="page roadmap-page">
             <div className="page-heading"><div><span className="eyebrow">EXECUTION MAP</span><h2>رودمپ پروژه</h2><p>از ایده تا اجرا، همراه با وضعیت و درصد پیشرفت.</p></div><button className="primary-button" onClick={()=>setCreateKind("roadmap")}><Plus size={15}/> آیتم جدید</button></div>
@@ -474,7 +670,7 @@ export default function Workspace() {
                 <div className="kanban-head"><div><span className={"status-dot s-"+status}/><strong>{statusMap[status]}</strong></div><span>{roadmapByStatus[status].length}</span></div>
                 <div className="kanban-list">
                   {roadmapByStatus[status].map(item=><article className="roadmap-card" key={item.id}>
-                    <div className="roadmap-card-top"><span className={"priority-label p-"+item.priority}>{item.priority}</span><button><MoreHorizontal size={16}/></button></div>
+                    <div className="roadmap-card-top"><span className={"priority-label p-"+item.priority}>{item.priority}</span><span className="roadmap-status-mini">{statusMap[item.status]||item.status}</span></div>
                     <h4>{item.title}</h4><p>{item.description}</p>
                     <div className="progress-track"><span style={{width:item.progress+"%"}}/></div>
                     <div className="roadmap-meta"><span>{item.progress}%</span>{item.target_date&&<span><CalendarDays size={13}/>{item.target_date}</span>}</div>
