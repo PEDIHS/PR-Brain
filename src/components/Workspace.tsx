@@ -5,7 +5,7 @@ import {
   ChevronDown, ChevronLeft, ChevronRight, CircleDot, Clock3, FileClock, FileText,
   FolderTree, GitBranch, History, LayoutDashboard, ListChecks, Loader2, LogOut,
   Milestone, MoreHorizontal, Plus, Search, Settings2, Sparkles, Target, Workflow,
-  X
+  X, Globe2, Server, Github, FolderCog, HeartPulse, Pencil, Save
 } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
@@ -28,15 +28,27 @@ type ActivityRow = {
   id:number; project_id:string; entity_type:string; entity_id:string|null; action:string; title:string;
   details:Record<string,unknown>; actor:string; created_at:string;
 };
+type ProjectProfile = {
+  project_id:string; primary_domain:string; repository_url:string; default_branch:string;
+  server_host:string; server_alias:string; deploy_path:string; web_root:string; env_path:string;
+  compose_path:string; runtime:string; healthcheck_url:string; readme_md:string; agent_rules_md:string;
+  metadata:Record<string,unknown>; updated_at:string;
+};
+type ProjectResource = {
+  id:string; project_id:string; kind:string; name:string; value:string; environment:string;
+  is_primary:boolean; metadata:Record<string,unknown>; created_at:string; updated_at:string;
+};
 type Bootstrap = {
   projects:Project[]; project:Project|null; workflows:WorkflowRow[]; nodes:NodeRow[];
   roadmap:RoadmapRow[]; activity:ActivityRow[];
   metrics?:{knowledge:number;workflows:number;open_roadmap:number;versions:number;changes_7d:number};
+  profile?:ProjectProfile|null; resources?:ProjectResource[];
 };
 type Detail = { node:NodeRow; versions:Array<{id:number;version:number;change_note:string;actor:string;created_at:string}>; relations:unknown[] };
 
 const sections = [
   {id:"overview",label:"نمای کلی",icon:LayoutDashboard},
+  {id:"readme",label:"README پروژه",icon:BookOpen},
   {id:"knowledge",label:"درخت دانش",icon:FolderTree},
   {id:"roadmap",label:"رودمپ",icon:Milestone},
   {id:"activity",label:"تغییرات",icon:Activity},
@@ -96,6 +108,7 @@ export default function Workspace() {
   const [createKind,setCreateKind] = useState<"project"|"knowledge"|"roadmap"|"workflow"|null>(null);
   const [saving,setSaving] = useState(false);
   const [editing,setEditing] = useState(false);
+  const [profileEditing,setProfileEditing] = useState(false);
   const [mobileNav,setMobileNav] = useState(false);
 
   const load = useCallback(async (nextProject?:string) => {
@@ -177,6 +190,34 @@ export default function Workspace() {
       if(createKind==="project" && out.project?.id) { setProjectId(out.project.id); await load(out.project.id); }
       else await load();
     }
+    setSaving(false);
+  }
+
+  async function saveProjectProfile(e:FormEvent<HTMLFormElement>) {
+    e.preventDefault(); if(!data?.project) return;
+    setSaving(true);
+    const fd=new FormData(e.currentTarget);
+    const payload={
+      projectId:data.project.id,
+      primary_domain:fd.get("primary_domain"),
+      repository_url:fd.get("repository_url"),
+      default_branch:fd.get("default_branch"),
+      server_host:fd.get("server_host"),
+      server_alias:fd.get("server_alias"),
+      deploy_path:fd.get("deploy_path"),
+      web_root:fd.get("web_root"),
+      env_path:fd.get("env_path"),
+      compose_path:fd.get("compose_path"),
+      runtime:fd.get("runtime"),
+      healthcheck_url:fd.get("healthcheck_url"),
+      readme_md:fd.get("readme_md"),
+      agent_rules_md:fd.get("agent_rules_md"),
+      changeNote:"Operational profile updated from UI",
+    };
+    const res=await fetch("/api/project-profile",{
+      method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)
+    });
+    if(res.ok){ await load(); setProfileEditing(false); }
     setSaving(false);
   }
 
@@ -291,6 +332,14 @@ export default function Workspace() {
               </div>
             </div>
 
+            <section className="operational-strip">
+              <div className="op-item"><span><Globe2 size={14}/> Domain</span><strong>{data.profile?.primary_domain || "ثبت نشده"}</strong></div>
+              <div className="op-item"><span><Github size={14}/> Repository</span><strong>{data.profile?.repository_url ? data.profile.repository_url.replace("https://github.com/","") : "ثبت نشده"}</strong></div>
+              <div className="op-item"><span><Server size={14}/> Server</span><strong>{data.profile?.server_host || "ثبت نشده"}</strong></div>
+              <div className="op-item"><span><FolderCog size={14}/> Deploy</span><strong>{data.profile?.deploy_path || "ثبت نشده"}</strong></div>
+              <button className="op-open" onClick={()=>setSection("readme")}>مشاهده پروفایل کامل <ChevronLeft size={14}/></button>
+            </section>
+
             <div className="metric-grid">
               <div className="metric-card"><span><Archive size={17}/>دانش ثبت‌شده</span><strong>{data.metrics?.knowledge||0}</strong><small>node در درخت پروژه</small></div>
               <div className="metric-card"><span><Workflow size={17}/>Workflowها</span><strong>{data.metrics?.workflows||0}</strong><small>مسیر کاری فعال</small></div>
@@ -330,6 +379,71 @@ export default function Workspace() {
                 </div>)}
               </div>
             </section>
+          </div>}
+
+          {section==="readme" && <div className="page readme-page">
+            <div className="page-heading">
+              <div><span className="eyebrow">PROJECT ENTRYPOINT</span><h2>README و پروفایل عملیاتی</h2><p>نقطه ورود سریع انسان و Agent به ساختار، آدرس‌ها و قوانین پروژه.</p></div>
+              <button className={profileEditing?"primary-button":"secondary-button"} onClick={()=>setProfileEditing(!profileEditing)}>
+                {profileEditing?<><X size={15}/> بستن ویرایش</>:<><Pencil size={15}/> ویرایش پروفایل</>}
+              </button>
+            </div>
+
+            {!profileEditing ? <>
+              <section className="profile-grid">
+                <article className="profile-card"><span><Globe2 size={15}/>Domain</span><strong>{data.profile?.primary_domain || "ثبت نشده"}</strong><small>Primary public domain</small></article>
+                <article className="profile-card"><span><Github size={15}/>Repository</span><strong>{data.profile?.repository_url || "ثبت نشده"}</strong><small>Branch: {data.profile?.default_branch || "—"}</small></article>
+                <article className="profile-card"><span><Server size={15}/>Server</span><strong>{data.profile?.server_host || "ثبت نشده"}</strong><small>{data.profile?.server_alias ? "Alias: "+data.profile.server_alias : "No alias"}</small></article>
+                <article className="profile-card"><span><FolderCog size={15}/>Deploy path</span><strong>{data.profile?.deploy_path || "ثبت نشده"}</strong><small>{data.profile?.runtime || "Runtime ثبت نشده"}</small></article>
+                <article className="profile-card"><span><FileText size={15}/>.env</span><strong>{data.profile?.env_path || "ثبت نشده"}</strong><small>Secrets are never stored in Brain</small></article>
+                <article className="profile-card"><span><Blocks size={15}/>Compose</span><strong>{data.profile?.compose_path || "ثبت نشده"}</strong><small>{data.profile?.web_root || "Web root ثبت نشده"}</small></article>
+                <article className="profile-card"><span><HeartPulse size={15}/>Healthcheck</span><strong>{data.profile?.healthcheck_url || "ثبت نشده"}</strong><small>Operational health endpoint</small></article>
+                <article className="profile-card"><span><Workflow size={15}/>Resources</span><strong>{data.resources?.length || 0} resource</strong><small>Domain · path · endpoint · service · repository</small></article>
+              </section>
+
+              <div className="readme-layout">
+                <section className="panel readme-panel">
+                  <div className="panel-head"><div><span className="eyebrow">README</span><h3>Project README</h3></div><span className="readme-updated">{data.profile?.updated_at ? fmtDate(data.profile.updated_at) : ""}</span></div>
+                  <div className="readme-document">{data.profile?.readme_md || "README این پروژه هنوز ثبت نشده."}</div>
+                </section>
+
+                <aside className="readme-side">
+                  <section className="panel rules-panel">
+                    <div className="panel-head"><div><span className="eyebrow">AGENT RULES</span><h3>قوانین Agent</h3></div></div>
+                    <div className="rules-document">{data.profile?.agent_rules_md || "قانون اختصاصی ثبت نشده."}</div>
+                  </section>
+                  <section className="panel resources-panel">
+                    <div className="panel-head"><div><span className="eyebrow">LOCATIONS</span><h3>منابع و مسیرها</h3></div></div>
+                    <div className="resource-list">
+                      {(data.resources||[]).map(r=><div className="resource-row" key={r.id}>
+                        <span className="resource-kind">{r.kind}</span>
+                        <div><strong>{r.name}</strong><code>{r.value}</code></div>
+                        <small>{r.environment}</small>
+                      </div>)}
+                      {!data.resources?.length && <div className="empty-inline">منبعی ثبت نشده.</div>}
+                    </div>
+                  </section>
+                </aside>
+              </div>
+            </> : <form className="panel profile-editor" onSubmit={saveProjectProfile}>
+              <div className="editor-section-title"><span className="eyebrow">OPERATIONAL COORDINATES</span><h3>آدرس‌های دقیق پروژه</h3></div>
+              <div className="profile-form-grid">
+                <label>دامنه اصلی<input name="primary_domain" defaultValue={data.profile?.primary_domain||""} placeholder="example.com"/></label>
+                <label>Repository<input name="repository_url" defaultValue={data.profile?.repository_url||""} placeholder="https://github.com/..."/></label>
+                <label>Branch<input name="default_branch" defaultValue={data.profile?.default_branch||"main"}/></label>
+                <label>Server host / IP<input name="server_host" defaultValue={data.profile?.server_host||""}/></label>
+                <label>Server alias<input name="server_alias" defaultValue={data.profile?.server_alias||""} placeholder="pedram2"/></label>
+                <label>Deploy path<input name="deploy_path" defaultValue={data.profile?.deploy_path||""} placeholder="/opt/project"/></label>
+                <label>Web root<input name="web_root" defaultValue={data.profile?.web_root||""}/></label>
+                <label>.env path<input name="env_path" defaultValue={data.profile?.env_path||""}/></label>
+                <label>Compose path<input name="compose_path" defaultValue={data.profile?.compose_path||""}/></label>
+                <label>Runtime<input name="runtime" defaultValue={data.profile?.runtime||""} placeholder="Docker Compose · Next.js · PostgreSQL"/></label>
+                <label className="wide">Healthcheck<input name="healthcheck_url" defaultValue={data.profile?.healthcheck_url||""}/></label>
+              </div>
+              <label>README<textarea name="readme_md" rows={18} defaultValue={data.profile?.readme_md||""}/></label>
+              <label>Agent Rules<textarea name="agent_rules_md" rows={10} defaultValue={data.profile?.agent_rules_md||""}/></label>
+              <div className="form-actions"><button type="button" className="secondary-button" onClick={()=>setProfileEditing(false)}>لغو</button><button className="primary-button" disabled={saving}><Save size={14}/>{saving?"در حال ذخیره…":"ذخیره پروفایل"}</button></div>
+            </form>}
           </div>}
 
           {section==="knowledge" && <div className="page knowledge-page">
