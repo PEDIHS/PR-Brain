@@ -353,3 +353,184 @@ BEGIN
       (tak_project,'knowledge',brand_node,'created','Brand foundation imported','{"version":1}','system');
   END IF;
 END $$;
+
+
+-- Project operational profile: fast machine-readable entrypoint for humans and agents.
+CREATE TABLE IF NOT EXISTS project_profiles (
+  project_id uuid PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+  primary_domain text NOT NULL DEFAULT '',
+  repository_url text NOT NULL DEFAULT '',
+  default_branch text NOT NULL DEFAULT 'main',
+  server_host text NOT NULL DEFAULT '',
+  server_alias text NOT NULL DEFAULT '',
+  deploy_path text NOT NULL DEFAULT '',
+  web_root text NOT NULL DEFAULT '',
+  env_path text NOT NULL DEFAULT '',
+  compose_path text NOT NULL DEFAULT '',
+  runtime text NOT NULL DEFAULT '',
+  healthcheck_url text NOT NULL DEFAULT '',
+  readme_md text NOT NULL DEFAULT '',
+  agent_rules_md text NOT NULL DEFAULT '',
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS project_resources (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  kind text NOT NULL,
+  name text NOT NULL,
+  value text NOT NULL,
+  environment text NOT NULL DEFAULT 'production',
+  is_primary boolean NOT NULL DEFAULT false,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(project_id, kind, name, environment)
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_resources_project_kind
+  ON project_resources(project_id, kind, environment);
+
+INSERT INTO project_profiles(
+  project_id,primary_domain,repository_url,default_branch,server_host,server_alias,
+  deploy_path,web_root,env_path,compose_path,runtime,healthcheck_url,readme_md,agent_rules_md,metadata
+)
+SELECT
+  p.id,
+  'brain.pedramhs.ir',
+  'https://github.com/PEDIHS/PR-Brain',
+  'main',
+  '46.8.100.224',
+  'pedram2',
+  '/opt/pr-brain',
+  '/opt/pr-brain',
+  '/opt/pr-brain/.env',
+  '/opt/pr-brain/docker-compose.yml',
+  'Docker Compose · Next.js · PostgreSQL · MCP',
+  'https://brain.pedramhs.ir/api/health',
+  '# PR Brain
+
+## Purpose
+PR Brain is the structured source of truth for multiple projects. It stores project profiles, workflow trees, durable knowledge, decisions, roadmap state, versions and change history.
+
+## Production
+- Web: https://brain.pedramhs.ir
+- MCP: https://brain.pedramhs.ir/mcp
+- Repository: https://github.com/PEDIHS/PR-Brain
+- Branch: main
+- Server: 46.8.100.224
+- Server alias: pedram2
+- Deploy path: /opt/pr-brain
+- Docker Compose: /opt/pr-brain/docker-compose.yml
+- Environment file: /opt/pr-brain/.env
+- Health: https://brain.pedramhs.ir/api/health
+
+## Runtime services
+- prbrain-app: Next.js web application
+- prbrain-mcp: MCP gateway for agents
+- prbrain-db: PostgreSQL source of truth
+
+## Agent entry
+Agents should call open_project with pr-brain before substantial work, inspect the profile and rules, then use the structured write tools so changes remain versioned and auditable.',
+  '# Agent rules
+1. Read the project profile before making structural or deployment changes.
+2. Never expose secrets or copy .env contents into knowledge nodes.
+3. Durable decisions must be stored as decision or architecture nodes.
+4. Structural moves must use move_knowledge so cycle protection and audit logging are preserved.
+5. Every material implementation change should leave an activity trace or knowledge update.
+6. Prefer superseding old decisions over deleting historical context.',
+  '{"profile_version":1,"source":"system-seed"}'::jsonb
+FROM projects p
+WHERE p.slug='pr-brain'
+ON CONFLICT(project_id) DO UPDATE SET
+  primary_domain=EXCLUDED.primary_domain,
+  repository_url=EXCLUDED.repository_url,
+  default_branch=EXCLUDED.default_branch,
+  server_host=EXCLUDED.server_host,
+  server_alias=EXCLUDED.server_alias,
+  deploy_path=EXCLUDED.deploy_path,
+  web_root=EXCLUDED.web_root,
+  env_path=EXCLUDED.env_path,
+  compose_path=EXCLUDED.compose_path,
+  runtime=EXCLUDED.runtime,
+  healthcheck_url=EXCLUDED.healthcheck_url,
+  readme_md=CASE WHEN project_profiles.readme_md='' THEN EXCLUDED.readme_md ELSE project_profiles.readme_md END,
+  agent_rules_md=CASE WHEN project_profiles.agent_rules_md='' THEN EXCLUDED.agent_rules_md ELSE project_profiles.agent_rules_md END,
+  metadata=project_profiles.metadata || EXCLUDED.metadata,
+  updated_at=now();
+
+INSERT INTO project_profiles(
+  project_id,primary_domain,repository_url,default_branch,runtime,readme_md,agent_rules_md,metadata
+)
+SELECT
+  p.id,
+  'taktook.ir',
+  '',
+  'main',
+  'Not yet bound to a production runtime in PR Brain',
+  '# TAKTOOK
+
+## Purpose
+TAKTOOK is an automotive-parts inventory intelligence and marketplace project focused on making hard-to-find inventory searchable, comparable and trustworthy.
+
+## Product shape
+The durable product direction is: search engine + live inventory network + marketplace. Core domains include seller inventory, vehicle/part compatibility, OEM/part identifiers, multi-city availability and price comparison, buy requests/quotes and later trust/transaction layers.
+
+## Operational profile
+- Primary brand/domain: taktook.ir
+- Production repository: not registered yet
+- Production server/path: not registered yet
+
+## Workflows
+Product, Engineering, UI & UX, Business, Marketing, Research, Operations and Brand.
+
+## Agent entry
+Agents should call open_project with TAKTOOK before work. Treat accepted decisions and architecture nodes as current truth unless a newer node explicitly supersedes them.',
+  '# Agent rules
+1. Resolve TAKTOOK through open_project before substantial work.
+2. Do not invent repository, server or deployment paths; register them only when verified.
+3. New durable product facts belong in Product; technical implementation truth belongs in Engineering.
+4. Accepted decisions must be superseded explicitly rather than silently overwritten.
+5. Link dependent concepts with relations when a change can affect another subsystem.
+6. Keep roadmap state synchronized with implementation evidence.',
+  '{"profile_version":1,"source":"system-seed","deployment_status":"unregistered"}'::jsonb
+FROM projects p
+WHERE p.slug='taktook'
+ON CONFLICT(project_id) DO UPDATE SET
+  primary_domain=CASE WHEN project_profiles.primary_domain='' THEN EXCLUDED.primary_domain ELSE project_profiles.primary_domain END,
+  readme_md=CASE WHEN project_profiles.readme_md='' THEN EXCLUDED.readme_md ELSE project_profiles.readme_md END,
+  agent_rules_md=CASE WHEN project_profiles.agent_rules_md='' THEN EXCLUDED.agent_rules_md ELSE project_profiles.agent_rules_md END,
+  metadata=project_profiles.metadata || EXCLUDED.metadata,
+  updated_at=now();
+
+INSERT INTO project_resources(project_id,kind,name,value,environment,is_primary,metadata)
+SELECT p.id,'domain','web','https://brain.pedramhs.ir','production',true,'{}'::jsonb FROM projects p WHERE p.slug='pr-brain'
+ON CONFLICT(project_id,kind,name,environment) DO UPDATE SET value=EXCLUDED.value,is_primary=EXCLUDED.is_primary,updated_at=now();
+INSERT INTO project_resources(project_id,kind,name,value,environment,is_primary,metadata)
+SELECT p.id,'endpoint','mcp','https://brain.pedramhs.ir/mcp','production',true,'{"auth":"bearer"}'::jsonb FROM projects p WHERE p.slug='pr-brain'
+ON CONFLICT(project_id,kind,name,environment) DO UPDATE SET value=EXCLUDED.value,is_primary=EXCLUDED.is_primary,metadata=EXCLUDED.metadata,updated_at=now();
+INSERT INTO project_resources(project_id,kind,name,value,environment,is_primary,metadata)
+SELECT p.id,'repository','github','https://github.com/PEDIHS/PR-Brain','production',true,'{"branch":"main"}'::jsonb FROM projects p WHERE p.slug='pr-brain'
+ON CONFLICT(project_id,kind,name,environment) DO UPDATE SET value=EXCLUDED.value,is_primary=EXCLUDED.is_primary,metadata=EXCLUDED.metadata,updated_at=now();
+INSERT INTO project_resources(project_id,kind,name,value,environment,is_primary,metadata)
+SELECT p.id,'server','production','46.8.100.224','production',true,'{"alias":"pedram2"}'::jsonb FROM projects p WHERE p.slug='pr-brain'
+ON CONFLICT(project_id,kind,name,environment) DO UPDATE SET value=EXCLUDED.value,is_primary=EXCLUDED.is_primary,metadata=EXCLUDED.metadata,updated_at=now();
+INSERT INTO project_resources(project_id,kind,name,value,environment,is_primary,metadata)
+SELECT p.id,'path','deploy','/opt/pr-brain','production',true,'{}'::jsonb FROM projects p WHERE p.slug='pr-brain'
+ON CONFLICT(project_id,kind,name,environment) DO UPDATE SET value=EXCLUDED.value,is_primary=EXCLUDED.is_primary,updated_at=now();
+INSERT INTO project_resources(project_id,kind,name,value,environment,is_primary,metadata)
+SELECT p.id,'path','env','/opt/pr-brain/.env','production',false,'{"secret":true}'::jsonb FROM projects p WHERE p.slug='pr-brain'
+ON CONFLICT(project_id,kind,name,environment) DO UPDATE SET value=EXCLUDED.value,is_primary=EXCLUDED.is_primary,metadata=EXCLUDED.metadata,updated_at=now();
+INSERT INTO project_resources(project_id,kind,name,value,environment,is_primary,metadata)
+SELECT p.id,'path','compose','/opt/pr-brain/docker-compose.yml','production',false,'{}'::jsonb FROM projects p WHERE p.slug='pr-brain'
+ON CONFLICT(project_id,kind,name,environment) DO UPDATE SET value=EXCLUDED.value,is_primary=EXCLUDED.is_primary,updated_at=now();
+INSERT INTO project_resources(project_id,kind,name,value,environment,is_primary,metadata)
+SELECT p.id,'service','web','prbrain-app','production',true,'{"internal_port":3000,"loopback_port":18250}'::jsonb FROM projects p WHERE p.slug='pr-brain'
+ON CONFLICT(project_id,kind,name,environment) DO UPDATE SET value=EXCLUDED.value,is_primary=EXCLUDED.is_primary,metadata=EXCLUDED.metadata,updated_at=now();
+INSERT INTO project_resources(project_id,kind,name,value,environment,is_primary,metadata)
+SELECT p.id,'service','mcp','prbrain-mcp','production',true,'{"internal_port":3001,"loopback_port":18251}'::jsonb FROM projects p WHERE p.slug='pr-brain'
+ON CONFLICT(project_id,kind,name,environment) DO UPDATE SET value=EXCLUDED.value,is_primary=EXCLUDED.is_primary,metadata=EXCLUDED.metadata,updated_at=now();
+INSERT INTO project_resources(project_id,kind,name,value,environment,is_primary,metadata)
+SELECT p.id,'service','database','prbrain-db','production',true,'{"engine":"PostgreSQL 16"}'::jsonb FROM projects p WHERE p.slug='pr-brain'
+ON CONFLICT(project_id,kind,name,environment) DO UPDATE SET value=EXCLUDED.value,is_primary=EXCLUDED.is_primary,metadata=EXCLUDED.metadata,updated_at=now();
