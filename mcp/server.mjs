@@ -60,13 +60,446 @@ async function appendActivity(client, {
   );
 }
 
+async function resolveProject(projectRef, client = pool) {
+  const ref = String(projectRef || "").trim();
+  if (!ref) return null;
+  const q = await client.query(
+    `SELECT id,name,slug,description,status,accent,created_at,updated_at
+     FROM projects
+     WHERE id::text=$1 OR slug=$1 OR lower(name)=lower($1)
+     ORDER BY
+       CASE WHEN id::text=$1 THEN 0 WHEN slug=$1 THEN 1 ELSE 2 END,
+       updated_at DESC
+     LIMIT 1`,
+    [ref],
+  );
+  return q.rows[0] || null;
+}
+
+async function readProjectProfile(projectId, client = pool) {
+  const [profile, resources] = await Promise.all([
+    client.query("SELECT * FROM project_profiles WHERE project_id=$1", [projectId]),
+    client.query(
+      `SELECT id,kind,name,value,environment,is_primary,metadata,created_at,updated_at
+       FROM project_resources
+       WHERE project_id=$1
+       ORDER BY is_primary DESC,kind,name,environment`,
+      [projectId],
+    ),
+  ]);
+  return {
+    profile: profile.rows[0] || null,
+    resources: resources.rows,
+  };
+}
+
 const handler = createMcpHandler(() => {
   const server = new McpServer(
-    { name: "pr-brain", version: "0.2.0" },
+    { name: "pr-brain", version: "0.3.0" },
     {
       capabilities: { tools: {} },
       instructions:
-        "PR Brain is the structured source of truth for projects. Read project context before making material project decisions. Use write tools to persist approved facts, decisions, architecture changes, roadmap items and implementation changes.",
+        "PR Brain is the structured source of truth for projects. Start substantial work with open_project using the project name, slug or UUID. Its Project Profile and README are the operational map: domain, repository, server, deploy path, services, rules, workflows, roadmap and recent changes. Never invent missing locations; register verified values with update_project_profile or upsert_project_resource. Persist durable facts and decisions through structured write tools so history stays versioned and auditable.",
+    },
+  );
+
+  server.registerTool(
+    "open_project",
+    {
+      description:
+        "Primary agent entrypoint. Resolve a project by name, slug or UUID and return its operational profile, README, rules, resources, workflows, knowledge map, active roadmap and recent changes in one call.",
+      inputSchema: z.object({
+        project: z.string().trim().min(1).max(300),
+        knowledge_limit: z.number().int().min(5).max(80).default(40),
+        change_limit: z.number().int().min(5).max(60).default(25),
+      }),
+    },
+    async ({ project, knowledge_limit, change_limit }) => {
+      const p = await resolveProject(project);
+      if (!p) return result({ error: "Project not found", project });
+
+      const [profileData, workflows, knowledge, roadmap, changes, counts] = await Promise.all([
+        readProjectProfile(p.id),
+        pool.query(
+          `SELECT id,name,slug,description,position,created_at
+           FROM workflows WHERE project_id=$1 ORDER BY position,name`,
+          [p.id],
+        ),
+        pool.query(
+          `SELECT id,workflow_id,parent_id,node_type,title,slug,summary,status,metadata,current_version,position,updated_at
+           FROM knowledge_nodes
+           WHERE project_id=$1
+           ORDER BY
+             CASE node_type
+               WHEN 'architecture' THEN 0
+               WHEN 'decision' THEN 1
+               WHEN 'requirement' THEN 2
+               WHEN 'folder' THEN 3
+               ELSE 4
+             END,
+             updated_at DESC
+           LIMIT $2`,
+          [p.id, knowledge_limit],
+        ),
+        pool.query(
+          `SELECT id,workflow_id,parent_id,title,description,status,priority,progress,target_date,position,updated_at
+           FROM roadmap_items
+           WHERE project_id=$1 AND status <> 'done'
+           ORDER BY
+             CASE priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
+             position,updated_at DESC
+           LIMIT 40`,
+          [p.id],
+        ),
+        pool.query(
+          `SELECT id,entity_type,entity_id,action,title,details,actor,created_at
+           FROM activity_log
+           WHERE project_id=$1
+           ORDER BY created_at DESC
+           LIMIT $2`,
+          [p.id, change_limit],
+        ),
+        pool.query(
+          `SELECT
+            (SELECT count(*)::int FROM workflows WHERE project_id=$1) workflows,
+            (SELECT count(*)::int FROM knowledge_nodes WHERE project_id=$1) knowledge,
+            (SELECT count(*)::int FROM knowledge_versions v JOIN knowledge_nodes n ON n.id=v.node_id WHERE n.project_id=$1) versions,
+            (SELECT count(*)::int FROM roadmap_items WHERE project_id=$1 AND status <> 'done') open_roadmap,
+            (SELECT count(*)::int FROM relations WHERE project_id=$1) relations`,
+          [p.id],
+        ),
+      ]);
+
+      return result({
+        schema_version: "agent-bootstrap-1.0",
+        generated_at: new Date().toISOString(),
+        project: p,
+        operational_profile: profileData.profile,
+        resources: profileData.resources,
+        readme: profileData.profile?.readme_md || "",
+        agent_rules: profileData.profile?.agent_rules_md || "",
+        workflows: workflows.rows,
+        knowledge_map: knowledge.rows,
+        active_roadmap: roadmap.rows,
+        recent_changes: changes.rows,
+        counts: counts.rows[0],
+        guidance: {
+          source_of_truth: "Use this profile and current accepted/versioned nodes. Do not infer missing deployment locations.",
+          write_policy: "Persist verified operational facts with update_project_profile/upsert_project_resource and durable project knowledge with save_knowledge/update_knowledge.",
+        },
+      });
+    },
+  );
+
+  server.registerTool(
+    "get_project_profile",
+    {
+      description:
+        "Resolve a project by name, slug or UUID and return exact operational coordinates: domain, repository, branch, server, deploy path, env/compose paths, runtime, healthcheck, README, rules and resources.",
+      inputSchema: z.object({
+        project: z.string().trim().min(1).max(300),
+      }),
+    },
+    async ({ project }) => {
+      const p = await resolveProject(project);
+      if (!p) return result({ error: "Project not found", project });
+      const profileData = await readProjectProfile(p.id);
+      return result({ project: p, ...profileData });
+    },
+  );
+
+  server.registerTool(
+    "get_project_readme",
+    {
+      description:
+        "Read the project's operational README and agent rules without loading the full project context.",
+      inputSchema: z.object({
+        project: z.string().trim().min(1).max(300),
+      }),
+    },
+    async ({ project }) => {
+      const p = await resolveProject(project);
+      if (!p) return result({ error: "Project not found", project });
+      const profileData = await readProjectProfile(p.id);
+      return result({
+        project: { id: p.id, name: p.name, slug: p.slug },
+        readme: profileData.profile?.readme_md || "",
+        agent_rules: profileData.profile?.agent_rules_md || "",
+        updated_at: profileData.profile?.updated_at || null,
+      });
+    },
+  );
+
+  server.registerTool(
+    "update_project_profile",
+    {
+      description:
+        "Create or update verified operational coordinates for a project. Use this when a domain, repository, server, deploy path, runtime or other project location changes.",
+      inputSchema: z.object({
+        project: z.string().trim().min(1).max(300),
+        primary_domain: z.string().max(500).optional(),
+        repository_url: z.string().max(2000).optional(),
+        default_branch: z.string().max(250).optional(),
+        server_host: z.string().max(500).optional(),
+        server_alias: z.string().max(500).optional(),
+        deploy_path: z.string().max(4000).optional(),
+        web_root: z.string().max(4000).optional(),
+        env_path: z.string().max(4000).optional(),
+        compose_path: z.string().max(4000).optional(),
+        runtime: z.string().max(4000).optional(),
+        healthcheck_url: z.string().max(2000).optional(),
+        readme_md: z.string().max(200000).optional(),
+        agent_rules_md: z.string().max(100000).optional(),
+        metadata: z.record(z.string(), z.unknown()).optional(),
+        change_note: z.string().trim().min(1).max(4000).default("Project operational profile updated"),
+      }),
+    },
+    async (input) => {
+      const updated = await tx(async (client) => {
+        const p = await resolveProject(input.project, client);
+        if (!p) return { error: "Project not found", project: input.project };
+
+        await client.query(
+          `INSERT INTO project_profiles(project_id) VALUES($1)
+           ON CONFLICT(project_id) DO NOTHING`,
+          [p.id],
+        );
+        const current = (
+          await client.query("SELECT * FROM project_profiles WHERE project_id=$1 FOR UPDATE", [p.id])
+        ).rows[0];
+
+        const metadata = input.metadata
+          ? { ...(current.metadata || {}), ...input.metadata }
+          : current.metadata || {};
+
+        const row = (
+          await client.query(
+            `UPDATE project_profiles SET
+              primary_domain=$2,
+              repository_url=$3,
+              default_branch=$4,
+              server_host=$5,
+              server_alias=$6,
+              deploy_path=$7,
+              web_root=$8,
+              env_path=$9,
+              compose_path=$10,
+              runtime=$11,
+              healthcheck_url=$12,
+              readme_md=$13,
+              agent_rules_md=$14,
+              metadata=$15,
+              updated_at=now()
+             WHERE project_id=$1
+             RETURNING *`,
+            [
+              p.id,
+              input.primary_domain ?? current.primary_domain,
+              input.repository_url ?? current.repository_url,
+              input.default_branch ?? current.default_branch,
+              input.server_host ?? current.server_host,
+              input.server_alias ?? current.server_alias,
+              input.deploy_path ?? current.deploy_path,
+              input.web_root ?? current.web_root,
+              input.env_path ?? current.env_path,
+              input.compose_path ?? current.compose_path,
+              input.runtime ?? current.runtime,
+              input.healthcheck_url ?? current.healthcheck_url,
+              input.readme_md ?? current.readme_md,
+              input.agent_rules_md ?? current.agent_rules_md,
+              metadata,
+            ],
+          )
+        ).rows[0];
+
+        await appendActivity(client, {
+          projectId: p.id,
+          entityType: "project_profile",
+          entityId: p.id,
+          action: "updated",
+          title: `Project profile updated: ${p.name}`,
+          details: { change_note: input.change_note },
+        });
+        await client.query("UPDATE projects SET updated_at=now() WHERE id=$1", [p.id]);
+        return { project: p, profile: row };
+      });
+      return result(updated);
+    },
+  );
+
+  server.registerTool(
+    "update_project_readme",
+    {
+      description:
+        "Update a project's operational README and optionally its agent rules. This is the human-readable project entry document used by agents.",
+      inputSchema: z.object({
+        project: z.string().trim().min(1).max(300),
+        readme_md: z.string().max(200000),
+        agent_rules_md: z.string().max(100000).optional(),
+        change_note: z.string().trim().min(1).max(4000).default("Project README updated"),
+      }),
+    },
+    async ({ project, readme_md, agent_rules_md, change_note }) => {
+      const updated = await tx(async (client) => {
+        const p = await resolveProject(project, client);
+        if (!p) return { error: "Project not found", project };
+        await client.query(
+          `INSERT INTO project_profiles(project_id,readme_md,agent_rules_md)
+           VALUES($1,$2,$3)
+           ON CONFLICT(project_id) DO UPDATE SET
+             readme_md=EXCLUDED.readme_md,
+             agent_rules_md=CASE
+               WHEN EXCLUDED.agent_rules_md='' THEN project_profiles.agent_rules_md
+               ELSE EXCLUDED.agent_rules_md
+             END,
+             updated_at=now()`,
+          [p.id, readme_md, agent_rules_md || ""],
+        );
+        await appendActivity(client, {
+          projectId: p.id,
+          entityType: "project_profile",
+          entityId: p.id,
+          action: "updated",
+          title: `README updated: ${p.name}`,
+          details: { change_note },
+        });
+        await client.query("UPDATE projects SET updated_at=now() WHERE id=$1", [p.id]);
+        const profileData = await readProjectProfile(p.id, client);
+        return { project: p, profile: profileData.profile };
+      });
+      return result(updated);
+    },
+  );
+
+  server.registerTool(
+    "upsert_project_resource",
+    {
+      description:
+        "Register or update an exact project resource/location such as domain, endpoint, repository, server, path, service, database, queue or external dashboard.",
+      inputSchema: z.object({
+        project: z.string().trim().min(1).max(300),
+        kind: z.string().trim().min(1).max(100),
+        name: z.string().trim().min(1).max(180),
+        value: z.string().trim().min(1).max(8000),
+        environment: z.string().trim().min(1).max(100).default("production"),
+        is_primary: z.boolean().default(false),
+        metadata: z.record(z.string(), z.unknown()).default({}),
+        change_note: z.string().trim().min(1).max(4000).default("Project resource updated"),
+      }),
+    },
+    async (input) => {
+      const updated = await tx(async (client) => {
+        const p = await resolveProject(input.project, client);
+        if (!p) return { error: "Project not found", project: input.project };
+
+        const resource = (
+          await client.query(
+            `INSERT INTO project_resources(
+               project_id,kind,name,value,environment,is_primary,metadata
+             ) VALUES($1,$2,$3,$4,$5,$6,$7)
+             ON CONFLICT(project_id,kind,name,environment)
+             DO UPDATE SET
+               value=EXCLUDED.value,
+               is_primary=EXCLUDED.is_primary,
+               metadata=project_resources.metadata || EXCLUDED.metadata,
+               updated_at=now()
+             RETURNING *`,
+            [
+              p.id,
+              input.kind,
+              input.name,
+              input.value,
+              input.environment,
+              input.is_primary,
+              input.metadata,
+            ],
+          )
+        ).rows[0];
+
+        await appendActivity(client, {
+          projectId: p.id,
+          entityType: "project_resource",
+          entityId: resource.id,
+          action: "updated",
+          title: `Resource updated: ${input.kind}/${input.name}`,
+          details: {
+            environment: input.environment,
+            change_note: input.change_note,
+          },
+        });
+        await client.query("UPDATE projects SET updated_at=now() WHERE id=$1", [p.id]);
+        return { project: p, resource };
+      });
+      return result(updated);
+    },
+  );
+
+  server.registerTool(
+    "resolve_project_location",
+    {
+      description:
+        "Fast lookup for where something in a project lives. Search registered domain, repository, server, path, endpoint, service and profile fields by a short query such as domain, env, compose, deploy, MCP, database or server.",
+      inputSchema: z.object({
+        project: z.string().trim().min(1).max(300),
+        query: z.string().trim().min(1).max(300),
+        environment: z.string().trim().max(100).optional(),
+      }),
+    },
+    async ({ project, query, environment }) => {
+      const p = await resolveProject(project);
+      if (!p) return result({ error: "Project not found", project });
+      const { profile, resources } = await readProjectProfile(p.id);
+
+      const q = query.toLowerCase();
+      const profileEntries = profile
+        ? [
+            ["primary_domain", profile.primary_domain],
+            ["repository_url", profile.repository_url],
+            ["default_branch", profile.default_branch],
+            ["server_host", profile.server_host],
+            ["server_alias", profile.server_alias],
+            ["deploy_path", profile.deploy_path],
+            ["web_root", profile.web_root],
+            ["env_path", profile.env_path],
+            ["compose_path", profile.compose_path],
+            ["runtime", profile.runtime],
+            ["healthcheck_url", profile.healthcheck_url],
+          ]
+            .filter(([, value]) => value)
+            .map(([name, value]) => ({
+              source: "profile",
+              kind: "profile",
+              name,
+              value,
+              environment: "production",
+              score:
+                String(name).toLowerCase().includes(q) || String(value).toLowerCase().includes(q)
+                  ? 2
+                  : 0,
+            }))
+        : [];
+
+      const resourceEntries = resources.map((r) => ({
+        source: "resource",
+        ...r,
+        score:
+          r.kind.toLowerCase().includes(q) ||
+          r.name.toLowerCase().includes(q) ||
+          r.value.toLowerCase().includes(q)
+            ? 3
+            : 0,
+      }));
+
+      const matches = [...profileEntries, ...resourceEntries]
+        .filter((entry) => (!environment || entry.environment === environment) && entry.score > 0)
+        .sort((a, b) => b.score - a.score);
+
+      return result({
+        project: { id: p.id, name: p.name, slug: p.slug },
+        query,
+        matches,
+        fallback_profile: matches.length ? null : profile,
+      });
     },
   );
 
