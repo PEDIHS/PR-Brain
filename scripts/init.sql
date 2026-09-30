@@ -202,3 +202,153 @@ BEGIN
     FROM knowledge_nodes WHERE project_id=pr;
   END IF;
 END $$;
+
+
+DO $$
+DECLARE
+  ws uuid;
+  project_id uuid;
+  product_wf uuid;
+  engineering_wf uuid;
+  design_wf uuid;
+  business_wf uuid;
+  marketing_wf uuid;
+  research_wf uuid;
+  operations_wf uuid;
+  brand_wf uuid;
+  definition_node uuid;
+  positioning_node uuid;
+  inventory_node uuid;
+  search_node uuid;
+  architecture_node uuid;
+  supply_node uuid;
+  brand_node uuid;
+BEGIN
+  SELECT id INTO ws FROM workspaces WHERE slug='main';
+  SELECT id INTO project_id FROM projects WHERE workspace_id=ws AND slug='taktook';
+
+  IF project_id IS NULL THEN
+    INSERT INTO projects(workspace_id,name,slug,description,accent)
+    VALUES (
+      ws,
+      'TAKTOOK',
+      'taktook',
+      'Marketplace and inventory-intelligence platform for automotive parts, focused on making hard-to-find inventory searchable and comparable.',
+      '#145C55'
+    )
+    RETURNING id INTO project_id;
+
+    INSERT INTO workflows(project_id,name,slug,description,position)
+    VALUES (project_id,'Product','product','Product definition, user flows, requirements and product decisions',10)
+    RETURNING id INTO product_wf;
+    INSERT INTO workflows(project_id,name,slug,description,position)
+    VALUES (project_id,'Engineering','engineering','Architecture, services, data models, APIs, search and infrastructure',20)
+    RETURNING id INTO engineering_wf;
+    INSERT INTO workflows(project_id,name,slug,description,position)
+    VALUES (project_id,'UI & UX','ui-ux','Information architecture, interaction patterns and design system',30)
+    RETURNING id INTO design_wf;
+    INSERT INTO workflows(project_id,name,slug,description,position)
+    VALUES (project_id,'Business','business','Business model, supply strategy, trust layer and monetization',40)
+    RETURNING id INTO business_wf;
+    INSERT INTO workflows(project_id,name,slug,description,position)
+    VALUES (project_id,'Marketing','marketing','Go-to-market, acquisition, SEO, campaigns and measurement',50)
+    RETURNING id INTO marketing_wf;
+    INSERT INTO workflows(project_id,name,slug,description,position)
+    VALUES (project_id,'Research','research','Market, competitor, user and technical research',60)
+    RETURNING id INTO research_wf;
+    INSERT INTO workflows(project_id,name,slug,description,position)
+    VALUES (project_id,'Operations','operations','Seller operations, support, deployment, monitoring and runbooks',70)
+    RETURNING id INTO operations_wf;
+    INSERT INTO workflows(project_id,name,slug,description,position)
+    VALUES (project_id,'Brand','brand','Brand identity, naming, messaging and visual language',80)
+    RETURNING id INTO brand_wf;
+
+    INSERT INTO knowledge_nodes(
+      project_id,workflow_id,node_type,title,slug,summary,content,metadata,position
+    ) VALUES (
+      project_id,product_wf,'folder','Project Definition','project-definition',
+      'The durable definition of what TAKTOOK is and what problem it solves.',
+      'TAKTOOK is designed as more than an online parts store. The core product is a searchable network of automotive-parts inventory across sellers and cities, combined with compatibility intelligence, price and availability comparison, hard-to-find part requests, and eventually trust and transaction layers.',
+      '{"state":"accepted","importance":"core"}',10
+    ) RETURNING id INTO definition_node;
+
+    INSERT INTO knowledge_nodes(
+      project_id,workflow_id,parent_id,node_type,title,slug,summary,content,metadata,position
+    ) VALUES (
+      project_id,product_wf,definition_node,'decision','Product Positioning','product-positioning',
+      'Search engine + inventory network + marketplace, rather than a conventional catalog store.',
+      'The product should be positioned around finding real inventory: what part exists, for which vehicle, with which seller, in which city, and at what price. Marketplace transactions are important, but inventory intelligence and discovery are the differentiating foundation.',
+      '{"state":"accepted","decision_type":"product"}',20
+    ) RETURNING id INTO positioning_node;
+
+    INSERT INTO knowledge_nodes(
+      project_id,workflow_id,parent_id,node_type,title,slug,summary,content,metadata,position
+    ) VALUES (
+      project_id,product_wf,definition_node,'requirement','Seller Inventory Network','seller-inventory-network',
+      'Digitize and synchronize seller and dismantler inventory into one searchable network.',
+      'TAKTOOK should support structured inventory from automotive-parts sellers, used-parts sellers and dismantlers. A lightweight inventory/POS workflow can reduce onboarding friction and become a direct inventory feed. Inventory should retain seller, city, condition, vehicle compatibility, identifiers, availability and price context.',
+      '{"state":"accepted","domain":"inventory"}',30
+    ) RETURNING id INTO inventory_node;
+
+    INSERT INTO knowledge_nodes(
+      project_id,workflow_id,parent_id,node_type,title,slug,summary,content,metadata,position
+    ) VALUES (
+      project_id,product_wf,definition_node,'requirement','Part Search & Compatibility','part-search-compatibility',
+      'Search by part identity and determine vehicle compatibility.',
+      'Search requirements include part name, OEM/part number and vehicle identifiers such as VIN where data is available. The compatibility layer should model interchangeable parts and relationships between parts and vehicle variants so discovery is not limited to exact text matching.',
+      '{"state":"accepted","domain":"search"}',40
+    ) RETURNING id INTO search_node;
+
+    INSERT INTO knowledge_nodes(
+      project_id,workflow_id,node_type,title,slug,summary,content,metadata,position
+    ) VALUES (
+      project_id,engineering_wf,'architecture','Architecture Drivers','architecture-drivers',
+      'Capabilities the technical architecture must preserve as the implementation evolves.',
+      'The architecture must support seller inventory ingestion and synchronization, structured vehicle/part compatibility, high-quality search, multi-city availability and pricing, part-request/quote flows, auditability, and future trust/transaction capabilities. Technical choices may evolve; these capabilities are architectural constraints.',
+      '{"state":"accepted","owner":"engineering"}',10
+    ) RETURNING id INTO architecture_node;
+
+    INSERT INTO knowledge_nodes(
+      project_id,workflow_id,node_type,title,slug,summary,content,metadata,position
+    ) VALUES (
+      project_id,business_wf,'document','Supply-Side Strategy','supply-side-strategy',
+      'Create value for sellers while building the inventory data moat.',
+      'Seller acquisition is not only a listing problem. TAKTOOK can create utility through simple inventory management and structured cataloging, then use those feeds to keep marketplace availability current. Used-parts sellers and dismantlers are especially important for hard-to-find inventory.',
+      '{"state":"active","domain":"supply"}',10
+    ) RETURNING id INTO supply_node;
+
+    INSERT INTO knowledge_nodes(
+      project_id,workflow_id,node_type,title,slug,summary,content,metadata,position
+    ) VALUES (
+      project_id,brand_wf,'decision','Brand Foundation','brand-foundation',
+      'TAKTOOK is the project brand; messaging emphasizes items that are uncommon or difficult to find.',
+      'Brand name: TAKTOOK / تک‌وتوک. Domain discussed for the project: taktook.ir. The naming idea fits the product promise of finding uncommon or hard-to-find items. Working message directions have included «سخت‌پیداها اینجان» and «هرچی همه‌جا نیست»; these should remain working copy until explicitly locked.',
+      '{"state":"accepted","copy_status":"working"}',10
+    ) RETURNING id INTO brand_node;
+
+    INSERT INTO knowledge_versions(node_id,version,title,summary,content,metadata,change_note,actor)
+    SELECT id,1,title,summary,content,metadata,'Imported as initial project memory','system'
+    FROM knowledge_nodes
+    WHERE project_id=project_id;
+
+    INSERT INTO roadmap_items(
+      project_id,workflow_id,title,description,status,priority,progress,position
+    ) VALUES
+      (project_id,product_wf,'Lock MVP scope','Define the smallest end-to-end buyer + seller loop and explicit non-goals.','in_progress','high',35,10),
+      (project_id,engineering_wf,'Canonical vehicle & part data model','Model vehicles, variants, parts, identifiers, compatibility and interchangeable parts.','planned','critical',10,20),
+      (project_id,engineering_wf,'Inventory ingestion MVP','Create the first seller inventory import/sync path with traceable updates.','planned','high',5,30),
+      (project_id,engineering_wf,'Search & compatibility MVP','Implement search across part text/identifiers and compatibility relationships.','planned','critical',5,40),
+      (project_id,business_wf,'Seller onboarding pilot','Validate the supply workflow with a small real seller cohort.','planned','high',0,50),
+      (project_id,business_wf,'Trust & transaction design','Define verification, test/return expectations and transaction protections.','planned','medium',0,60),
+      (project_id,marketing_wf,'Demand acquisition baseline','Define SEO/category landing structure and measurable acquisition baseline.','planned','medium',0,70);
+
+    INSERT INTO activity_log(project_id,entity_type,entity_id,action,title,details,actor)
+    VALUES
+      (project_id,'project',project_id,'created','TAKTOOK project memory initialized','{"source":"bootstrap-import"}','system'),
+      (project_id,'knowledge',positioning_node,'created','Product positioning imported','{"version":1}','system'),
+      (project_id,'knowledge',inventory_node,'created','Inventory network requirement imported','{"version":1}','system'),
+      (project_id,'knowledge',search_node,'created','Search and compatibility requirement imported','{"version":1}','system'),
+      (project_id,'knowledge',architecture_node,'created','Architecture drivers imported','{"version":1}','system'),
+      (project_id,'knowledge',brand_node,'created','Brand foundation imported','{"version":1}','system');
+  END IF;
+END $$;
