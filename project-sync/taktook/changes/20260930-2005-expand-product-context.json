@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "id": "20260930-expand-taktook-product-context",
+  "project": "taktook",
+  "title": "Expand TAKTOOK product and architecture context",
+  "agent": "ChatGPT Product Agent",
+  "created_at": "2026-09-30T20:05:00+02:00",
+  "notes": "Add clearer product definition, marketplace operating model and inventory data flow so agents have richer context for future work.",
+  "operations": [
+    {
+      "op": "knowledge.update",
+      "data": {
+        "node_id": "0bf8e403-24d3-440b-87ee-e4147ba65119",
+        "expected_version": 1,
+        "title": "Project Definition",
+        "summary": "تعریف جامع TAKTOOK به‌عنوان موتور جستجو، شبکه موجودی و مارکت‌پلیس قطعات خودرو.",
+        "content": "TAKTOOK یک فروشگاه اینترنتی ساده نیست؛ هسته محصول یک شبکه جستجوپذیر از موجودی واقعی قطعات خودرو در میان فروشندگان، اوراقی‌ها و تامین‌کنندگان شهرهای مختلف است. کاربر باید بتواند قطعه را با نام خودرو، مدل، کد فنی، OEM، شماره قطعه و در آینده VIN پیدا کند، سازگاری آن را با خودرو بررسی کند، موجودی و قیمت فروشندگان مختلف را مقایسه کند و برای قطعات کمیاب درخواست خرید یا استعلام ثبت کند. سمت عرضه نیز باید به فروشنده ابزار ثبت و نگهداری موجودی، مدیریت قیمت، پاسخ به درخواست‌ها و در آینده ابزارهای اعتماد، تسویه و تراکنش بدهد. مزیت اصلی TAKTOOK از تجمیع موجودی واقعی، داده سازگاری قطعات و ایجاد لایه اعتماد بین خریدار و فروشنده شکل می‌گیرد."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "marketplace_model",
+      "data": {
+        "workflow_id": "ca36ff99-b24c-4ef9-a3bd-dc15614504b9",
+        "node_type": "document",
+        "title": "Marketplace Operating Model",
+        "slug": "marketplace-operating-model",
+        "summary": "مدل عملیاتی TAKTOOK از ورود موجودی فروشنده تا جستجو، استعلام و معامله.",
+        "content": "مدل عملیاتی TAKTOOK چهار حلقه اصلی دارد. حلقه اول ورود عرضه است؛ فروشنده موجودی قطعات، خودرو مبدا، وضعیت قطعه، قیمت و شهر را ثبت یا از طریق ابزارهای واردسازی همگام می‌کند. حلقه دوم استانداردسازی داده است؛ اطلاعات خام به مدل یکنواخت خودرو، قطعه، کد فنی و سازگاری تبدیل می‌شود. حلقه سوم کشف و تقاضاست؛ خریدار با جستجو یا ثبت درخواست قطعه به موجودی مرتبط می‌رسد و گزینه‌ها را بر اساس سازگاری، قیمت، موقعیت و اعتبار مقایسه می‌کند. حلقه چهارم اعتماد و تراکنش است؛ ارتباط، پاسخ به استعلام، اعتبار فروشنده، وضعیت سفارش و در مراحل بعدی پرداخت و ضمانت معامله مدیریت می‌شود. هدف این است که هر تعامل جدید، کیفیت داده و پوشش موجودی شبکه را بیشتر کند."
+      }
+    },
+    {
+      "op": "knowledge.create",
+      "ref": "inventory_flow",
+      "data": {
+        "workflow_id": "ac5417c9-aba6-4653-9c7c-c0a5d6f47993",
+        "node_type": "architecture",
+        "title": "Inventory Data Flow",
+        "slug": "inventory-data-flow",
+        "summary": "جریان داده موجودی از فروشنده تا ایندکس جستجو و موتور سازگاری.",
+        "content": "جریان پیشنهادی داده موجودی به این شکل است: Seller Source → Ingestion → Validation & Normalization → Canonical Vehicle/Part Mapping → Inventory Store → Search Index → Compatibility Engine → Marketplace API. هر رکورد موجودی باید منبع، فروشنده، زمان آخرین تایید، وضعیت موجودی، قیمت، شهر، شناسه قطعه و خودروهای سازگار را قابل ردیابی نگه دارد. تغییر موجودی باید به‌صورت رویداد قابل همگام‌سازی وارد Search Index شود تا نتایج جستجو از واقعیت فروشنده عقب نمانند. داده‌های نامطمئن باید confidence یا وضعیت نیازمند بررسی داشته باشند و هیچ تطبیق سازگاری نباید بدون منبع یا سطح اطمینان مشخص به‌عنوان حقیقت قطعی ثبت شود."
+      }
+    },
+    {
+      "op": "relation.create",
+      "data": {
+        "source_node_id": "$marketplace_model",
+        "target_node_id": "05947333-0fea-45e9-8c2f-06f3ac729551",
+        "relation_type": "depends_on"
+      }
+    },
+    {
+      "op": "relation.create",
+      "data": {
+        "source_node_id": "$inventory_flow",
+        "target_node_id": "468906af-005a-4e26-9885-2f6caa6cd468",
+        "relation_type": "supports"
+      }
+    }
+  ]
+}
